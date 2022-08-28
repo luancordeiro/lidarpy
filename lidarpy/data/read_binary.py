@@ -146,7 +146,10 @@ class GetData:
         times = []
         phys = []
         for file in self.files_name:
-            head, phy, raw = self.profile_read(f"{self.directory}/{file}")
+            head, phy, _ = self.profile_read(f"{self.directory}/{file}")
+
+            for p in phy:
+                p *= np.arange(1, len(p) + 1) * 7.5
 
             times.append(head["jdi"])
             phys.append(phy)
