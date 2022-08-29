@@ -1,7 +1,7 @@
 """Testando a transformação de dados de binário para xarray"""
 
 import os
-from lidarpy.data.read_binary import GetData
+from lidarpy import GetData
 
 directory = "data/binary"
 files = [file for file in os.listdir(directory) if file.startswith("RM")]
