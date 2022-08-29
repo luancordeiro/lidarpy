@@ -31,8 +31,8 @@ class Raman:
     z                - Altitude                                          [m]
     elastic_signal   -
     inelastic_signal -
-    lidar_wavelength - the wavelength of the lidar                       [m]
-    raman_wavelength - the wavelength of the inelastic backscatter foton [m]
+    lidar_wavelength - the wavelength of the lidar                       [nm]
+    raman_wavelength - the wavelength of the inelastic backscatter foton [nm]
     angstrom_coeff   - dependence of                                     [u.a]
     p_air            - pressure                                          [Pa]
     t_air            - temperature                                       [K]
@@ -47,8 +47,8 @@ class Raman:
 
     def __init__(self,
                  lidar_data: xr.Dataset,
-                 lidar_wavelength: float,
-                 raman_wavelength: float,
+                 lidar_wavelength: int,
+                 raman_wavelength: int,
                  angstrom_coeff: float,
                  p_air: np.array,
                  t_air: np.array,
@@ -57,11 +57,11 @@ class Raman:
                  co2ppmv: int = 392):
 
         self.p_air, self.t_air = p_air, t_air
-        self.lidar_wavelength, self.raman_wavelength = lidar_wavelength, raman_wavelength
+        self.lidar_wavelength, self.raman_wavelength = lidar_wavelength * 1e-9, raman_wavelength * 1e-9
         self.angstrom_coeff, self.co2ppmv = angstrom_coeff, co2ppmv
 
         self.z_ref = ref
-        self.z = lidar_data.coords["Altitude"]
+        self.z = lidar_data.coords["altitude"]
 
         self._ref = np.where(abs(self.z - self.z_ref) == min(abs(self.z - self.z_ref)))[0][0]
         self._delta_ref = np.where(abs(self.z - self.z_ref - 1500) == min(abs(self.z - self.z_ref - 1500)))[0][0]
