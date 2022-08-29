@@ -147,10 +147,6 @@ class GetData:
         phys = []
         for file in self.files_name:
             head, phy, _ = self.profile_read(f"{self.directory}/{file}")
-
-            for p in phy:
-                p *= (np.arange(1, len(p) + 1) * 7.5) ** 2
-
             times.append(head["jdi"])
             phys.append(phy)
 
@@ -158,7 +154,9 @@ class GetData:
         phys = np.array(phys)
         alt = np.arange(1, len(phys[0][0]) + 1) * 7.5
 
-        return xr.DataArray(phys, coords=[times, wavelengths, alt], dims=["time", "wavelength", "altitude"])
+        da = xr.DataArray(phys, coords=[times, wavelengths, alt], dims=["time", "wavelength", "altitude"])
+        da *= alt ** 2
+        return da
 
     def to_netcdf(self, directory: str = None, save_name: str = None) -> None:
         directory = f"{directory}/" if not directory.endswith("/") else directory
