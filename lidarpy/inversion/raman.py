@@ -52,7 +52,7 @@ class Raman:
                  angstrom_coeff: float,
                  p_air: np.array,
                  t_air: np.array,
-                 ref: int = 4000,
+                 ref: int,
                  pc: bool = True,
                  co2ppmv: int = 392):
 
@@ -69,6 +69,8 @@ class Raman:
         data_label = [f"{wave}_{int(pc)}" for wave in [lidar_wavelength, raman_wavelength]]
         self.elastic_signal = lidar_data.sel(wavelength=data_label[0]).data
         self.inelastic_signal = lidar_data.sel(wavelength=data_label[1]).data
+
+        self._alpha_beta_molecular(co2ppmv)
 
     def get_alpha(self):
         return self._alpha.copy()
