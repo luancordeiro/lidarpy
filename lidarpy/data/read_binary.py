@@ -150,12 +150,12 @@ class GetData:
             times.append(head["jdi"])
             phys.append(phy)
 
-        wavelengths = [f"{wavelength}_{photon}" for wavelength, photon in zip(head["ch"]["wlen"], head["ch"]["photons"])]
+        wavelengths = [f"{wavelength}_{photon}"
+                       for wavelength, photon
+                       in zip(head["ch"]["wlen"], head["ch"]["photons"])]
         phys = np.array(phys)
         alt = np.arange(1, len(phys[0][0]) + 1) * 7.5
-
         da = xr.DataArray(phys, coords=[times, wavelengths, alt], dims=["time", "wavelength", "altitude"])
-        da *= alt ** 2
         return da
 
     def to_netcdf(self, directory: str = None, save_name: str = None) -> None:
