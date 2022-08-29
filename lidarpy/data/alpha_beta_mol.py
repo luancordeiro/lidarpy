@@ -10,6 +10,11 @@ class AlphaBetaMolecular:
     temp - Atmospheric temperature profile [K]
     lambda_ - wavelength vector [m]
     co2ppmv - CO2 concentration [ppmv]
+
+    Output:
+    alpha_mol: molecular extinction coefficient [m^-1]
+    beta_mol: molecular backscattering coefficient [m^-1 sr^-1]
+    lr_mol: molecular lidar ratio [sr]
     """
 
     def __init__(self,
