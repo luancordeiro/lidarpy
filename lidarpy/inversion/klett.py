@@ -1,4 +1,5 @@
 import numpy as np
+import xarray as xr
 from scipy.integrate import cumtrapz, trapz
 from scipy.optimize import curve_fit
 from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
@@ -53,7 +54,7 @@ class Klett:
     z - Height Profile [m]
     pr - Lidar Profile [-]
     ref - Reference Height(s) [m]
-    lambda_ - Lidar Wavelength [m]
+    lambda_ - Lidar Wavelength [nm]
     lidar_ratio - Extinction to Backscatter Ratio [sr]
     p_air - Atmospheric pressure profile [Pa]
     t_air - Atmospheric temperature profile [K]
@@ -66,22 +67,22 @@ class Klett:
     _calib_strategies = {True: calib_strategy1, False: calib_strategy2}
 
     def __init__(self,
-                 z: np.ndarray,
-                 signal: np.ndarray,
+                 lidar_data: xr.Dataset,
                  ref: np.ndarray,
-                 wavelength: float,
+                 wavelength: int,
                  lidar_ratio: float,
                  p_air: np.ndarray,
                  t_air: np.ndarray,
+                 pc: bool = True,
                  co2ppmv: int = 392,
                  correct_noise: bool = True):
-        self.z = z
-        self.signal = signal
+        self.z = lidar_data.coords["altitude"]
+        self.signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
         self.ref = ref
         self._calib_strategy = self._calib_strategies[correct_noise]
         self._lr['aer'] = lidar_ratio
 
-        self._get_molecular_alpha_beta(p_air, t_air, wavelength, co2ppmv)
+        self._get_molecular_alpha_beta(p_air, t_air, wavelength * 1e-9, co2ppmv)
 
     def __str__(self):
         return f"Lidar ratio = {self._lr['aer']}"
