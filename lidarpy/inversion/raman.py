@@ -157,4 +157,6 @@ class Raman:
 
         self._beta["elastic_aer"] = self._beta_elastic_total() - self._beta["elastic_mol"]
 
-        return self
+        return (self._alpha["elastic_aer"],
+                self._beta["elastic_aer"],
+                self._alpha["elastic_aer"] / self._beta["elastic_aer"])
