@@ -33,12 +33,17 @@ class Transmittance:
         self._alpha, self._beta, _ = alpha_beta_mol.get_params()
 
     def fit(self):
+        """Para calcular o tau, estou pegando o sinal médio dos 10 bins abaixo da camada
+        e os 10 bins diretamente acima da camada"""
         s = self._range_corrected_signal()
-        transmittance_factor = (s[self._ref[1]] * self._beta[self._ref[0]]
-                                / (s[self._ref[0]] * self._beta[self._ref[1]]))
+        s0, s1 = s[self._ref[0] - 10:self._ref[0]].mean(), s[self._ref[1]:self._ref[1] + 10].mean()
+        beta0, beta1 = (self._beta[self._ref[0] - 10:self._ref[0]].mean(),
+                        self._beta[self._ref[1]:self._ref[1] + 10].mean())
 
-        transmittance_factor *= np.exp(2 * trapz(x=self.z[self._ref[0]:self._ref[1] + 1],
-                                                 y=self._alpha[self._ref[0]:self._ref[1] + 1]))
+        transmittance_factor = (s1 * beta0 / (s0 * beta1)
+                                * np.exp(2 * trapz(x=self.z[self._ref[0]:self._ref[1] + 1],
+                                                   y=self._alpha[self._ref[0]:self._ref[1] + 1])))
 
         self.tau = -0.5 * np.log(transmittance_factor)
+
         return self.tau
