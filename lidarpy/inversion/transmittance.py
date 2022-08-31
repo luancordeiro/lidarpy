@@ -32,11 +32,11 @@ class Transmittance:
         alpha_beta_mol = AlphaBetaMolecular(p_air, t_air, wavelength, co2ppmv)
         self._alpha, self._beta, _ = alpha_beta_mol.get_params()
 
-    def fit(self):
+    def fit(self, delta_z=10):
         """Para calcular o tau, estou pegando o sinal médio dos 10 bins abaixo da camada
         e os 10 bins diretamente acima da camada"""
         s = self._range_corrected_signal()
-        s0, s1 = s[self._ref[0] - 10:self._ref[0]].mean(), s[self._ref[1]:self._ref[1] + 10].mean()
+        s0, s1 = s[self._ref[0] - delta_z:self._ref[0]].mean(), s[self._ref[1]:self._ref[1] + delta_z].mean()
         beta0, beta1 = (self._beta[self._ref[0] - 10:self._ref[0]].mean(),
                         self._beta[self._ref[1]:self._ref[1] + 10].mean())
 
