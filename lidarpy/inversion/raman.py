@@ -52,7 +52,7 @@ class Raman:
                  angstrom_coeff: float,
                  p_air: np.array,
                  t_air: np.array,
-                 ref: int,
+                 z_ref: int,
                  pc: bool = True,
                  co2ppmv: int = 392):
 
@@ -60,12 +60,12 @@ class Raman:
         self.lidar_wavelength, self.raman_wavelength = lidar_wavelength * 1e-9, raman_wavelength * 1e-9
         self.angstrom_coeff, self.co2ppmv = angstrom_coeff, co2ppmv
 
-        self.z_ref = ref
         self.z = lidar_data.coords["altitude"].data
 
-        self._ref = np.where(abs(self.z - self.z_ref) == min(abs(self.z - self.z_ref)))[0][0]
-        self._delta_ref = np.where(abs(self.z - self.z_ref - 1000) == min(abs(self.z - self.z_ref - 1000)))[0][0]
-        self._delta_ref -= self._ref
+        z_ref = lidar_data.coords["altitude"].sel(altitude=z_ref, method="nearest").data
+        z_delta_ref = lidar_data.coords["altitude"].sel(altitude=z_ref - 1500, method="nearest").data
+        self._ref = np.where(self.z == z_ref)[0][0]
+        self._delta_ref = self._ref - np.where(self.z == z_delta_ref)[0][0]
 
         data_label = [f"{wave}_{int(pc)}" for wave in [lidar_wavelength, raman_wavelength]]
         self.elastic_signal = lidar_data.sel(wavelength=data_label[0]).data
