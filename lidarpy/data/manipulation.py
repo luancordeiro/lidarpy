@@ -42,4 +42,4 @@ def groupby_nbins(ds, n_bins):
             .groupby("altitude")
             .mean()
             .assign_coords(altitude=lambda x: [alt[i * n_bins:(i + 1) * n_bins].mean() for i in range(len(x.altitude))])
-          )
+            )

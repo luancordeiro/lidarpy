@@ -1,5 +1,5 @@
 from lidarpy import GetData
-from lidarpy.data.clean import remove_background
+from lidarpy.data.manipulation import remove_background
 from lidarpy.inversion.raman import Raman
 import os
 import matplotlib.pyplot as plt
