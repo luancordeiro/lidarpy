@@ -68,7 +68,7 @@ class Klett:
 
     def __init__(self,
                  lidar_data: xr.Dataset,
-                 ref: np.ndarray,
+                 ref: list,
                  wavelength: int,
                  lidar_ratio: float,
                  p_air: np.ndarray,
@@ -76,9 +76,9 @@ class Klett:
                  pc: bool = True,
                  co2ppmv: int = 392,
                  correct_noise: bool = True):
-        self.z = lidar_data.coords["altitude"]
+        self.z = lidar_data.coords["altitude"].data
         self.signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
-        self.ref = ref
+        self.ref = lidar_data.coords["altitude"].sel(altitude=ref, method="nearest").data
         self._calib_strategy = self._calib_strategies[correct_noise]
         self._lr['aer'] = lidar_ratio
 
@@ -108,8 +108,10 @@ class Klett:
         self._alpha['mol'], self._beta['mol'], self._lr['mol'] = alpha_beta_mol.get_params()
 
     def _calib(self):
-        ref = np.round(self.ref / (self.z[1] - self.z[0]))
-        ref = ref.astype(int)
+        print(self.ref)
+        print(self.z[1])
+        print(self.z[0])
+        ref = np.where((self.z == self.ref[0]) | (self.z == self.ref[1]))[0]
         print(f'reference: {ref}')
 
         if len(ref) > 1:
@@ -134,6 +136,7 @@ class Klett:
         print()
 
         corrected_signal = signal * self.z ** 2
+        print(f"ref0={ref0}")
         print(f'corrected_singal: {corrected_signal[ref0 - 3:ref0 + 4]}')
         print()
 
