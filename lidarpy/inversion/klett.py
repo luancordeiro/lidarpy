@@ -166,4 +166,4 @@ class Klett:
 
         self._alpha['tot'] = self._alpha['mol'] + self._alpha['aer']
 
-        return self._alpha["aer"].copy(), self._beta["aer"].copy(), self._lr["aer"].copy()
+        return self._alpha["aer"].copy(), self._beta["aer"].copy(), self._lr["aer"]
