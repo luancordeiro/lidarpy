@@ -108,22 +108,14 @@ class Klett:
         self._alpha['mol'], self._beta['mol'], self._lr['mol'] = alpha_beta_mol.get_params()
 
     def _calib(self):
-        print(self.ref)
-        print(self.z[1])
-        print(self.z[0])
         ref = np.where((self.z == self.ref[0]) | (self.z == self.ref[1]))[0]
-        print(f'reference: {ref}')
 
         if len(ref) > 1:
             signal, model, self.fit_parameters = self._calib_strategy(signal=self.signal.copy(),
                                                                       model=self.get_model_mol(),
                                                                       reference=np.arange(ref[0], ref[-1], dtype=int))
 
-            print(f'signal[R0]: {signal[ref[0]]}')
-            print(f'model[R0]: {model[ref[0]]}')
-
             beta_ref = self._beta['mol'][ref[0]] * signal[ref[0]] / model[ref[0]]
-            print(f'beta_ref: {beta_ref}')
         else:
             signal = self.signal
             beta_ref = self._beta['mol'][ref[0]]
@@ -131,34 +123,18 @@ class Klett:
         return beta_ref, signal, ref[0]
 
     def fit(self):
-        print(f"lidar ratio: {self._lr['aer']}")
         beta_ref, signal, ref0 = self._calib()
-        print()
 
         corrected_signal = signal * self.z ** 2
-        print(f"ref0={ref0}")
-        print(f'corrected_singal: {corrected_signal[ref0 - 3:ref0 + 4]}')
-        print()
 
         spp = corrected_signal * np.exp(- 2 * cumtrapz(x=self.z,
                                                        y=(self._lr['aer'] - self._lr['mol']) * self._beta['mol'],
                                                        initial=0))
-        print(f'spp: {spp[ref0 - 3:ref0 + 4]}')
-        print()
-        sppr = spp / spp[ref0]
 
-        print(f'sppr: {sppr[ref0 - 3: ref0 + 4]}')
-        print()
+        sppr = spp / spp[ref0]
 
         self._beta['tot'] = sppr / (1 / beta_ref - (cumtrapz(x=self.z, y=2 * self._lr['aer'] * sppr, initial=0)
                                                     - trapz(x=self.z[:ref0], y=2 * self._lr['aer'] * sppr[:ref0])))
-
-        print(f"cumtrapz: {cumtrapz(x=self.z, y=2 * self._lr['aer'] * sppr, initial=0)[ref0 - 3: ref0 + 4]}")
-        print()
-        print(f"trapz: {trapz(x=self.z[:ref0], y=2 * self._lr['aer'] * sppr[:ref0])}")
-        print()
-        print(
-            f"cumtrapz - trapz: {np.round((cumtrapz(x=self.z, y=2 * self._lr['aer'] * sppr, initial=0) - trapz(x=self.z[:ref0], y=2 * self._lr['aer'] * sppr[:ref0]))[ref0 - 3: ref0 + 4], 3)}")
 
         self._beta['aer'] = self._beta['tot'] - self._beta['mol']
 
