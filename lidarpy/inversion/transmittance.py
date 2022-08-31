@@ -21,7 +21,7 @@ class Transmittance:
         self.z = lidar_data.coords["altitude"].data
 
         z_ref = lidar_data.coords["altitude"].sel(altitude=z_lims, method="nearest").data
-        self._ref = np.where(self.z == z_ref)[0][0]
+        self._ref = np.where((self.z == z_ref[0]) | (self.z == z_ref[1]))[0]
 
         self._get_molecular_alpha_beta(p_air, t_air, wavelength * 1e-9, co2ppmv)
 
@@ -37,8 +37,8 @@ class Transmittance:
         transmittance_factor = (s[self._ref[1]] * self._beta[self._ref[0]]
                                 / (s[self._ref[0]] * self._beta[self._ref[1]]))
 
-        transmittance_factor *= np.exp(2 * trapz(x=self.z[self._ref[0]:self._ref[1]],
-                                                 y=self._alpha[self._ref[0]:self._ref[1]]))
+        transmittance_factor *= np.exp(2 * trapz(x=self.z[self._ref[0]:self._ref[1] + 1],
+                                                 y=self._alpha[self._ref[0]:self._ref[1] + 1]))
 
         self.tau = -0.5 * np.log(transmittance_factor)
         return self.tau

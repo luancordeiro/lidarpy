@@ -1,6 +1,6 @@
 from lidarpy import GetData
 from lidarpy.data.manipulation import remove_background, atmospheric_interpolation
-from lidarpy.inversion.klett import Klett
+from lidarpy.inversion.transmittance import Transmittance
 import os
 # import matplotlib.pyplot as plt
 import pandas as pd
@@ -18,23 +18,9 @@ lidar_data = lidar_data.mean("time")
 
 ds = lidar_data[[1, 3], 1100:2100].rolling(altitude=7).mean().dropna("altitude")
 
-# plt.plot(lidar_data.coords["altitude"][:3000], lidar_data.sel(wavelength="355_1").data[:3000])
-# plt.show()
-#
-# plt.plot(lidar_data.coords["altitude"][:3000],
-#          lidar_data.sel(wavelength="355_1").data[:3000] * lidar_data.coords["altitude"][:3000] ** 2)
-# plt.show()
-
 temperature, pressure = atmospheric_interpolation(ds.coords["altitude"].data,
                                                   pd.read_csv("data/sonde_data.txt"))
 
-print(temperature.shape, pressure.shape)
+tau = Transmittance(ds, [11_700, 15_350], 355, pressure, temperature).fit()
 
-klett = Klett(ds,
-              [9000, 11000],
-              355,
-              19,
-              pressure,
-              temperature
-              )
-klett.fit()
+print(f"tau = {tau}")

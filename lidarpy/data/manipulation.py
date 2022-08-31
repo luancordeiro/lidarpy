@@ -1,6 +1,7 @@
 """Conjunto de funções que tem como objetivo limpar os dados. Essas funções podem ser aplicados aos dados
 utilizando o método .pipe() de um xarray"""
 import numpy as np
+from scipy.interpolate import interp1d
 
 
 def remove_background(ds, alt_ref: list):
@@ -33,11 +34,20 @@ def groupby_nbins(ds, n_bins):
 
     alt = ds.coords["altitude"].data
 
-    mean = alt[:n_bins].mean()
-
     return (ds
             .assign_coords(altitude=np.arange(len(alt)) // n_bins)
             .groupby("altitude")
             .mean()
             .assign_coords(altitude=lambda x: [alt[i * n_bins:(i + 1) * n_bins].mean() for i in range(len(x.altitude))])
             )
+
+
+def atmospheric_interpolation(z, df_sonde):
+    """Recebe um df com os dados de pressão temperature e altura e interpola para um z arbitrário"""
+    f_temp = interp1d(df_sonde["alt"].to_numpy(), df_sonde["temp"].to_numpy())
+    f_pres = interp1d(df_sonde["alt"].to_numpy(), df_sonde["pres"].to_numpy())
+
+    temperature = f_temp(z)
+    pressure = f_pres(z)
+
+    return temperature, pressure

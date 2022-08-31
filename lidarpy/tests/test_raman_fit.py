@@ -1,10 +1,9 @@
 from lidarpy import GetData
-from lidarpy.data.manipulation import remove_background
+from lidarpy.data.manipulation import remove_background, atmospheric_interpolation
 from lidarpy.inversion.raman import Raman
 import os
 import matplotlib.pyplot as plt
 import pandas as pd
-from scipy.interpolate import interp1d
 
 directory = "data/binary"
 files = [file for file in os.listdir(directory) if file.startswith("RM")]
@@ -26,18 +25,8 @@ ds = lidar_data[[1, 3], 1100:2100].rolling(altitude=7).mean().dropna("altitude")
 #          lidar_data.sel(wavelength="355_1").data[:3000] * lidar_data.coords["altitude"][:3000] ** 2)
 # plt.show()
 
-df_sonde = pd.read_csv("data/sonde_data.txt")
-
-# df_sonde.plot(x="alt", subplots=True, figsize=(12, 7))
-# plt.show()
-
-f_temp = interp1d(df_sonde["alt"].to_numpy(), df_sonde["temp"].to_numpy())
-f_pres = interp1d(df_sonde["alt"].to_numpy(), df_sonde["pres"].to_numpy())
-
-z = ds.coords["altitude"].data
-
-temperature = f_temp(z)
-pressure = f_pres(z)
+temperature, pressure = atmospheric_interpolation(ds.coords["altitude"].data,
+                                                  pd.read_csv("data/sonde_data.txt"))
 
 print(temperature.shape, pressure.shape)
 
