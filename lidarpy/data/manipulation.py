@@ -35,8 +35,6 @@ def groupby_nbins(ds, n_bins):
 
     mean = alt[:n_bins].mean()
 
-    print(mean)
-
     return (ds
             .assign_coords(altitude=np.arange(len(alt)) // n_bins)
             .groupby("altitude")
