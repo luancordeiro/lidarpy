@@ -45,21 +45,11 @@ class Raman:
     _diff_window = 7
     _diff_strategy = diff_sliding_lsq_fit
 
-    def __init__(self,
-                 lidar_data: xr.Dataset,
-                 lidar_wavelength: int,
-                 raman_wavelength: int,
-                 angstrom_coeff: float,
-                 p_air: np.array,
-                 t_air: np.array,
-                 z_ref: int,
-                 pc: bool = True,
-                 co2ppmv: int = 392):
-
-        self.p_air, self.t_air = p_air, t_air
-        self.lidar_wavelength, self.raman_wavelength = lidar_wavelength * 1e-9, raman_wavelength * 1e-9
-        self.angstrom_coeff, self.co2ppmv = angstrom_coeff, co2ppmv
-
+    def __init__(self, lidar_data: xr.Dataset, lidar_wavelength: int, raman_wavelength: int, angstrom_coeff: float,
+                 p_air: np.array, t_air: np.array, z_ref: int, pc: bool = True, co2ppmv: int = 392):
+        data_label = [f"{wave}_{int(pc)}" for wave in [lidar_wavelength, raman_wavelength]]
+        self.elastic_signal = lidar_data.sel(wavelength=data_label[0]).data
+        self.inelastic_signal = lidar_data.sel(wavelength=data_label[1]).data
         self.z = lidar_data.coords["altitude"].data
 
         z_ref = lidar_data.coords["altitude"].sel(altitude=z_ref, method="nearest").data
@@ -67,11 +57,12 @@ class Raman:
         self._ref = np.where(self.z == z_ref)[0][0]
         self._delta_ref = self._ref - np.where(self.z == z_delta_ref)[0][0]
 
-        data_label = [f"{wave}_{int(pc)}" for wave in [lidar_wavelength, raman_wavelength]]
-        self.elastic_signal = lidar_data.sel(wavelength=data_label[0]).data
-        self.inelastic_signal = lidar_data.sel(wavelength=data_label[1]).data
+        self.p_air, self.t_air = p_air, t_air
+        self.lidar_wavelength, self.raman_wavelength = lidar_wavelength * 1e-9, raman_wavelength * 1e-9
+        self.angstrom_coeff = angstrom_coeff
+        self.co2ppmv = co2ppmv
 
-        self._alpha_beta_molecular(co2ppmv)
+        self._get_alpha_beta_molecular(co2ppmv)
 
     def get_alpha(self):
         return self._alpha.copy()
@@ -82,7 +73,7 @@ class Raman:
     def get_lidar_ratio(self):
         return self._alpha["elastic_aer"] / self._beta["elastic_aer"]
 
-    def _alpha_beta_molecular(self, co2ppmv):
+    def _get_alpha_beta_molecular(self, co2ppmv):
         elastic_alpha_beta = AlphaBetaMolecular(self.p_air,
                                                 self.t_air,
                                                 self.lidar_wavelength,
@@ -102,18 +93,17 @@ class Raman:
         atm_numerical_density = self.p_air / (1.380649e-23 * self.t_air)
         return atm_numerical_density * 78.08e-2
 
-    def _diff(self, y, x) -> np.array:
+    def _diff(self, num_density, ranged_corrected_signal, z) -> np.array:
         """Realiza a suavizacao da curva e, em seguida, calcula a derivada necessaria para o calculo do coeficiente de
         extincao dos aerossois com base na estrategia escolhida."""
-        return self._diff_strategy(y, x, self._diff_window)
+        y = np.log(num_density / ranged_corrected_signal)
+        return self._diff_strategy(y, z, self._diff_window)
 
     def _alpha_elastic_aer(self) -> np.array:
         """Retorna o coeficiente de extincao de aerossois."""
-        ranged_corrected_signal = self.inelastic_signal * self.z ** 2
-
-        y = np.log(self._raman_scatterer_numerical_density() / ranged_corrected_signal)
-
-        diff_num_signal = self._diff(y, self.z)
+        diff_num_signal = self._diff(self._raman_scatterer_numerical_density(),
+                                     self.inelastic_signal * self.z ** 2,
+                                     self.z)
 
         return (diff_num_signal - self._alpha['elastic_mol'] - self._alpha['inelastic_mol']) / \
                (1 + (self.lidar_wavelength / self.raman_wavelength) ** self.angstrom_coeff)
