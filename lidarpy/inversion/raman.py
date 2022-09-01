@@ -2,25 +2,42 @@ import xarray as xr
 import numpy as np
 from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
 from scipy.integrate import cumtrapz, trapz
+from sklearn.linear_model import LinearRegression
 
 
 def diff_(y, x, window=None):
     return np.gradient(y) / np.gradient(x)
 
 
-def diff_sliding_lsq_fit(y, x, window=5):
-    diff_y = []
-    for i in range(window, len(y) + 1):
-        x_fit = x[i - window:i]
-        y_fit = y[i - window:i]
+def diff_linear_regression(y: np.array, x: np.array, window: int = 5, weights: np.array = None):
+    def fit(init, final):
+        y_fit = y[init: final].reshape(-1, 1)
+        x_fit = x[init: final].reshape(-1, 1)
 
-        a_ = np.vstack([x_fit, np.ones(len(x_fit))]).T
-        a, _ = np.linalg.lstsq(a_, y_fit, rcond=None)[0]
-
-        if i != window:
-            diff_y.append(a)
+        if weights is None:
+            linear_regession = LinearRegression().fit(x_fit, y_fit)
         else:
-            diff_y += [a] * window
+            weight_fit = weights[init: final]
+            linear_regession = LinearRegression().fit(x_fit, y_fit, sample_weight=weight_fit)
+
+        return linear_regession.coef_[0][0]
+
+    if window % 2 == 0:
+        raise ValueError("window must be odd.")
+
+    win = window // 2
+    diff_y = []
+    for i in range(win, len(y) - win - 10 - 1):
+        diff_y.append(fit(i - win, i + win + 1))
+#        if (i % 20 == 0) & (win <= window // 2 + 10):
+#            win += 2
+
+    for i in range(window // 2):
+        # diff_y.insert(i, fit(None, i + window // 2))
+        diff_y.insert(0, diff_y[0])
+
+    while len(diff_y) != len(y):
+        diff_y += [diff_y[-1]]
 
     return np.array(diff_y)
 
@@ -43,7 +60,7 @@ class Raman:
     _alpha = dict()
     _beta = dict()
     _diff_window = 7
-    _diff_strategy = diff_sliding_lsq_fit
+    _diff_strategy = diff_linear_regression
 
     def __init__(self, lidar_data: xr.Dataset, lidar_wavelength: int, raman_wavelength: int, angstrom_coeff: float,
                  p_air: np.array, t_air: np.array, z_ref: int, pc: bool = True, co2ppmv: int = 392):
@@ -136,7 +153,7 @@ class Raman:
 
         return beta_ref * signal_ratio * attenuation_ratio
 
-    def fit(self, diff_strategy=diff_sliding_lsq_fit, diff_window=7):
+    def fit(self, diff_strategy=diff_linear_regression, diff_window=7):
         self._diff_window = diff_window
         self._diff_strategy = diff_strategy
 
