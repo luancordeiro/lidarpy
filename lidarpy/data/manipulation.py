@@ -3,8 +3,6 @@ utilizando o método .pipe() de um xarray"""
 import numpy as np
 from scipy.interpolate import interp1d
 from scipy.integrate import cumtrapz
-from scipy.optimize import curve_fit
-from sklearn.linear_model import LinearRegression
 from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
 
 
