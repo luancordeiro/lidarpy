@@ -30,11 +30,5 @@ temperature, pressure = atmospheric_interpolation(ds.coords["altitude"].data,
 
 print(temperature.shape, pressure.shape)
 
-klett = Klett(ds,
-              [9000, 11000],
-              355,
-              19,
-              pressure,
-              temperature
-              )
+klett = Klett(ds, 355, 19, pressure, temperature, [9000, 11000])
 klett.fit()
