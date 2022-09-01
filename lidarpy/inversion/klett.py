@@ -8,6 +8,7 @@ from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
 def calib_strategy1(signal: np.array,
                     model: np.array,
                     reference: np.array):
+    print(reference)
     mean_signal = np.mean(signal[reference])
     signal = signal / mean_signal
     print(f'mean signal: {mean_signal}')
@@ -16,7 +17,7 @@ def calib_strategy1(signal: np.array,
     model = model / mean_model
     print(f'mean_model: {mean_model}')
 
-    coef_slope_linear, pcov = curve_fit(f=lambda x, a, b: a * x + b, xdata=model[reference], ydata=signal[reference])
+    coef_slope_linear, *_ = curve_fit(f=lambda x, a, b: a * x + b, xdata=model[reference], ydata=signal[reference])
     print(f'ab: {coef_slope_linear}')
 
     signal = (signal - coef_slope_linear[1]) / coef_slope_linear[0]
@@ -37,7 +38,7 @@ def calib_strategy2(signal: np.array,
     model = model / mean_model
     print(f'mean_model: {mean_model}')
 
-    coef_slope, pcov = curve_fit(f=lambda x, a: a * x, xdata=model[reference], ydata=signal[reference])
+    coef_slope, *_ = curve_fit(f=lambda x, a: a * x, xdata=model[reference], ydata=signal[reference])
     print(f'a: {coef_slope}')
 
     signal = signal / coef_slope[0]
@@ -66,23 +67,15 @@ class Klett:
     fit_parameters = None
     _calib_strategies = {True: calib_strategy1, False: calib_strategy2}
 
-    def __init__(self,
-                 lidar_data: xr.Dataset,
-                 z_ref: list,
-                 wavelength: int,
-                 lidar_ratio: float,
-                 p_air: np.ndarray,
-                 t_air: np.ndarray,
-                 pc: bool = True,
-                 co2ppmv: int = 392,
-                 correct_noise: bool = True):
-        self.z = lidar_data.coords["altitude"].data
+    def __init__(self, lidar_data: xr.Dataset, wavelength: int, lidar_ratio: float, p_air: np.ndarray,
+                 t_air: np.ndarray, z_ref: list, pc: bool = True, co2ppmv: int = 392, correct_noise: bool = True):
         self.signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
+        self.z = lidar_data.coords["altitude"].data
         self.ref = lidar_data.coords["altitude"].sel(altitude=z_ref, method="nearest").data
         self._calib_strategy = self._calib_strategies[correct_noise]
         self._lr['aer'] = lidar_ratio
 
-        self._get_molecular_alpha_beta(p_air, t_air, wavelength * 1e-9, co2ppmv)
+        self._get_alpha_beta_molecular(p_air, t_air, wavelength * 1e-9, co2ppmv)
 
     def __str__(self):
         return f"Lidar ratio = {self._lr['aer']}"
@@ -103,7 +96,7 @@ class Klett:
     def get_model_mol(self) -> np.array:
         return self._beta['mol'] * np.exp(-2 * cumtrapz(self.z, self._alpha['mol'], initial=0)) / self.z ** 2
 
-    def _get_molecular_alpha_beta(self, p_air, t_air, wavelength, co2ppmv):
+    def _get_alpha_beta_molecular(self, p_air, t_air, wavelength, co2ppmv):
         alpha_beta_mol = AlphaBetaMolecular(p_air, t_air, wavelength, co2ppmv)
         self._alpha['mol'], self._beta['mol'], self._lr['mol'] = alpha_beta_mol.get_params()
 
