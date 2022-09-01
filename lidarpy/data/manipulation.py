@@ -2,6 +2,10 @@
 utilizando o método .pipe() de um xarray"""
 import numpy as np
 from scipy.interpolate import interp1d
+from scipy.integrate import cumtrapz
+from scipy.optimize import curve_fit
+from sklearn.linear_model import LinearRegression
+from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
 
 
 def remove_background(ds, alt_ref: list):
@@ -51,3 +55,26 @@ def atmospheric_interpolation(z, df_sonde):
     pressure = f_pres(z)
 
     return temperature, pressure
+
+
+def molecular_model(lidar_data, wavelength, p_air, t_air, z_ref, co2ppmv=392, pc=True):
+    if "wavelength" in lidar_data.dims:
+        signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
+    else:
+        signal = lidar_data.data
+
+    z = lidar_data.coords["altitude"].data
+
+    alpha_beta_mol = AlphaBetaMolecular(p_air, t_air, wavelength, co2ppmv)
+    alpha_mol, beta_mol, _ = alpha_beta_mol.get_params()
+
+    model = beta_mol * np.exp(-2 * cumtrapz(z, alpha_mol, initial=0)) / z ** 2
+
+    ref = lidar_data.coords["altitude"].sel(altitude=z_ref, method="nearest").data
+    ref = np.where((z == ref[0]) | (z == ref[1]))[0]
+
+    reg = np.polyfit(model[ref[0]:ref[1]],
+                     signal[ref[0]:ref[1]],
+                     1)
+
+    return reg[0] * model + reg[1]
