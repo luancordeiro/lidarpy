@@ -69,7 +69,11 @@ class Klett:
 
     def __init__(self, lidar_data: xr.Dataset, wavelength: int, lidar_ratio: float, p_air: np.ndarray,
                  t_air: np.ndarray, z_ref: list, pc: bool = True, co2ppmv: int = 392, correct_noise: bool = True):
-        self.signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
+        if wavelength in lidar_data.dims:
+            self.signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
+        else:
+            self.signal = lidar_data.data
+
         self.z = lidar_data.coords["altitude"].data
         self.ref = lidar_data.coords["altitude"].sel(altitude=z_ref, method="nearest").data
         self._calib_strategy = self._calib_strategies[correct_noise]
