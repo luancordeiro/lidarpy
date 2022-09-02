@@ -17,7 +17,11 @@ class Transmittance:
                  t_air: np.ndarray,
                  pc=True,
                  co2ppmv: int = 392,):
-        self.signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
+        if "wavelength" in lidar_data.dims:
+            self.signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
+        else:
+            self.signal = lidar_data.data
+
         self.z = lidar_data.coords["altitude"].data
 
         z_ref = lidar_data.coords["altitude"].sel(altitude=z_lims, method="nearest").data
