@@ -60,6 +60,11 @@ class Klett:
     p_air - Atmospheric pressure profile [Pa]
     t_air - Atmospheric temperature profile [K]
     co2ppmv - CO2 concentration [ppmv]
+
+
+    Authors:
+    Pablo Ristori    (pablo.ristori@gmail.com) CEILAP, UNIDEF (CITEDEF-CONICET), Argentina
+    Lidia Otero      (lidia1116@gmail.com)     CEILAP, UNIDEF (CITEDEF-CONICET), Argentina
     """
     _alpha = dict()
     _beta = dict()
