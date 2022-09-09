@@ -15,6 +15,11 @@ class AlphaBetaMolecular:
     alpha_mol: molecular extinction coefficient [m^-1]
     beta_mol: molecular backscattering coefficient [m^-1 sr^-1]
     lr_mol: molecular lidar ratio [sr]
+
+    Authors:
+    H. M. J. Barbosa (hbarbosa@if.usp.br), IF, USP, Brazil
+    B. Barja         (bbarja@gmail.com), GOAC, CMC, Cuba
+    R. Costa         (re.dacosta@gmail.com), IPEN, Brazil
     """
 
     def __init__(self,
