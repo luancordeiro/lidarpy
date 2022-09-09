@@ -47,25 +47,23 @@ klett = Klett(ds,
               28,
               df_sonde["pressure"].to_numpy(),
               df_sonde["temperature"].to_numpy(),
-              [6500, 8000])
+              [6500, 14000])
 
 alpha, beta, lr = klett.fit()
 
-ind = np.where(df_sonde
-               .isin(ds.altitude.sel(altitude=[5800, 6200], method="nearest")
-                     .data))[0]
+ind = (ds.coords["altitude"] > 4000) & (ds.coords["altitude"] < 8000)
 
-plot_3graph_std(ds.coords["altitude"][ind[0]:ind[1]],
-                alpha[ind[0]:ind[1]],
-                beta[ind[0]:ind[1]],
-                lr * np.ones(alpha.shape)[ind[0]:ind[1]])
+plot_3graph_std(ds.coords["altitude"][ind],
+                alpha[ind],
+                beta[ind],
+                lr * np.ones(alpha.shape)[ind])
 
-AOD = cumtrapz(alpha[ind[0]:ind[1]],
-               ds.coords["altitude"][ind[0]:ind[1]],
+AOD = cumtrapz(alpha[ind],
+               ds.coords["altitude"][ind],
                initial=0)
 
 plt.figure(figsize=(12, 7))
-plt.plot(ds.coords["altitude"][ind[0]:ind[1]], AOD)
+plt.plot(ds.coords["altitude"][ind], AOD)
 plt.title(f"AOD[-1]={AOD[-1].round(3)}")
 plt.ylabel("AOD")
 plt.xlabel("Altitude (m)")

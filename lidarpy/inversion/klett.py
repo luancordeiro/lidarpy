@@ -8,17 +8,14 @@ from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
 def calib_strategy1(signal: np.array,
                     model: np.array,
                     reference: np.array):
-    print(reference)
+
     mean_signal = np.mean(signal[reference])
     signal = signal / mean_signal
-    print(f'mean signal: {mean_signal}')
 
     mean_model = np.mean(model[reference])
     model = model / mean_model
-    print(f'mean_model: {mean_model}')
 
     coef_slope_linear, *_ = curve_fit(f=lambda x, a, b: a * x + b, xdata=model[reference], ydata=signal[reference])
-    print(f'ab: {coef_slope_linear}')
 
     signal = (signal - coef_slope_linear[1]) / coef_slope_linear[0]
 
@@ -32,14 +29,11 @@ def calib_strategy2(signal: np.array,
                     reference: np.array):
     mean_signal = np.mean(signal[reference])
     signal = signal / mean_signal
-    print(f'mean signal: {mean_signal}')
 
     mean_model = np.mean(model[reference])
     model = model / mean_model
-    print(f'mean_model: {mean_model}')
 
     coef_slope, *_ = curve_fit(f=lambda x, a: a * x, xdata=model[reference], ydata=signal[reference])
-    print(f'a: {coef_slope}')
 
     signal = signal / coef_slope[0]
 
@@ -103,7 +97,7 @@ class Klett:
         return self._lr.copy()
 
     def get_model_mol(self) -> np.array:
-        return self._beta['mol'] * np.exp(-2 * cumtrapz(self.z, self._alpha['mol'], initial=0)) / self.z ** 2
+        return self._beta['mol'] * np.exp(-2 * cumtrapz(self._alpha['mol'], self.z, initial=0)) / self.z ** 2
 
     def _get_alpha_beta_molecular(self, p_air, t_air, wavelength, co2ppmv):
         alpha_beta_mol = AlphaBetaMolecular(p_air, t_air, wavelength, co2ppmv)
@@ -116,7 +110,6 @@ class Klett:
             signal, model, self.fit_parameters = self._calib_strategy(signal=self.signal.copy(),
                                                                       model=self.get_model_mol(),
                                                                       reference=np.arange(ref[0], ref[-1], dtype=int))
-
             beta_ref = self._beta['mol'][ref[0]] * signal[ref[0]] / model[ref[0]]
         else:
             signal = self.signal
