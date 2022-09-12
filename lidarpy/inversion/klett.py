@@ -125,7 +125,7 @@ class Klett:
         if len(ref) > 1:
             signal, model, self.fit_parameters = self._calib_strategy(signal=signal.copy(),
                                                                       model=self.get_model_mol(),
-                                                                      reference=np.arange(ref[0], ref[-1], dtype=int))
+                                                                      reference=np.arange(*ref))
             beta_ref = self._beta['mol'][ref[0]] * signal[ref[0]] / model[ref[0]]
         else:
             signal = signal
