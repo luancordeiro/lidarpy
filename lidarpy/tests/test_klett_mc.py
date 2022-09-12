@@ -82,5 +82,4 @@ plt.show()
 print(alpha_std[ind])
 
 print("----")
-print(tau)
-print(tau_std)
+print(f"AOD = {tau} +- {tau_std}")
