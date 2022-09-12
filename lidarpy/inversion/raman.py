@@ -58,12 +58,19 @@ class Raman:
 
     """
     _alpha = dict()
+    _alpha_std = None
     _beta = dict()
+    _beta_std = None
     _diff_window = 7
     _diff_strategy = diff_linear_regression
+    _mc_bool = True
 
     def __init__(self, lidar_data: xr.DataArray, lidar_wavelength: int, raman_wavelength: int, angstrom_coeff: float,
-                 p_air: np.array, t_air: np.array, z_ref: int, pc: bool = True, co2ppmv: int = 392):
+                 p_air: np.array, t_air: np.array, z_ref: int, pc: bool = True, co2ppmv: int = 392, mc_iter: int = None,
+                 tau_ind: np.array = None):
+        if (mc_iter is not None) and (tau_ind is None):
+            raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
+
         data_label = [f"{wave}_{int(pc)}" for wave in [lidar_wavelength, raman_wavelength]]
         self.elastic_signal = lidar_data.sel(wavelength=data_label[0]).data
         self.inelastic_signal = lidar_data.sel(wavelength=data_label[1]).data
@@ -74,7 +81,7 @@ class Raman:
         self._ref = np.where(self.z == z_ref)[0][0]
         self._delta_ref = self._ref - np.where(self.z == z_delta_ref)[0][0]
 
-        self.p_air, self.t_air = p_air, t_air
+        self.p_air, self.t_air, self.mc_iter, self.tau_ind = p_air, t_air, mc_iter, tau_ind
         self.lidar_wavelength, self.raman_wavelength = lidar_wavelength * 1e-9, raman_wavelength * 1e-9
         self.angstrom_coeff = angstrom_coeff
         self.co2ppmv = co2ppmv
@@ -140,20 +147,22 @@ class Raman:
     def _beta_elastic_total(self) -> np.array:
         scatterer_numerical_density = self._raman_scatterer_numerical_density()
 
-        signal_ratio = ((self._ref_value(self.inelastic_signal) * self.elastic_signal /
-                        (self._ref_value(self.elastic_signal) * self.inelastic_signal)) *
-                        (scatterer_numerical_density / self._ref_value(scatterer_numerical_density)))
+        signal_ratio = ((self._ref_value(self.inelastic_signal) * self.elastic_signal
+                         / (self._ref_value(self.elastic_signal) * self.inelastic_signal))
+                        * (scatterer_numerical_density / self._ref_value(scatterer_numerical_density)))
 
-        attenuation_ratio = (np.exp(-cumtrapz(x=self.z, y=self._alpha_inelastic_total(), initial=0) +
-                                    trapz(x=self.z[:self._ref], y=self._alpha_inelastic_total()[:self._ref])) /
-                             np.exp(-cumtrapz(x=self.z, y=self._alpha_elastic_total(), initial=0) +
-                                    trapz(x=self.z[:self._ref], y=self._alpha_elastic_total()[:self._ref])))
+        attenuation_ratio = (np.exp(-cumtrapz(x=self.z, y=self._alpha_inelastic_total(), initial=0)
+                                    + trapz(x=self.z[:self._ref], y=self._alpha_inelastic_total()[:self._ref]))
+                             / np.exp(-cumtrapz(x=self.z, y=self._alpha_elastic_total(), initial=0)
+                                      + trapz(x=self.z[:self._ref], y=self._alpha_elastic_total()[:self._ref])))
 
         beta_ref = self._ref_value(self._beta["elastic_mol"])
 
         return beta_ref * signal_ratio * attenuation_ratio
 
     def fit(self, diff_strategy=diff_linear_regression, diff_window=7):
+        if (self.mc_iter is not None) & self._mc_bool:
+            return self._mc_fit(diff_strategy=diff_linear_regression, diff_window=7)
         self._diff_window = diff_window
         self._diff_strategy = diff_strategy
 
@@ -167,3 +176,48 @@ class Raman:
         return (self._alpha["elastic_aer"],
                 self._beta["elastic_aer"],
                 self._alpha["elastic_aer"] / self._beta["elastic_aer"])
+
+    def _mc_fit(self, diff_strategy, diff_window):
+        self._mc_bool = False
+
+        original_elastic_signal = self.elastic_signal.copy()
+        original_inelastic_signal = self.inelastic_signal.copy()
+
+        elastic_signals = np.random.poisson(self.elastic_signal, size=(self.mc_iter, len(self.elastic_signal)))
+        inelastic_signals = np.random.poisson(self.inelastic_signal, size=(self.mc_iter, len(self.inelastic_signal)))
+
+        alphas = []
+        betas = []
+        lrs = []
+        taus = []
+        for elastic_signal, inelastic_signal in zip(elastic_signals, inelastic_signals):
+            self.elastic_signal = elastic_signal.copy()
+            self.inelastic_signal = inelastic_signal.copy()
+
+            alpha, beta, lr = self.fit(diff_strategy, diff_window)
+
+            alphas.append(alpha)
+            betas.append(beta)
+            lrs.append(lr)
+            taus.append(trapz(alpha[-1][self.tau_ind], self.z[self.tau_ind]))
+
+        self._alpha["elastic_aer"] = np.mean(alphas, axis=0)
+        self._alpha_std = np.std(alphas, ddof=1, axis=0)
+        self._beta["elastic_aer"] = np.mean(betas, axis=0)
+        self._beta_std = np.std(betas, ddof=1, axis=0)
+        self._lidar_ratio = np.mean(lrs, axis=0)
+        self._lidar_ratio_std = np.std(lrs, ddof=1, axis=0)
+        self.tau = np.mean(taus, axis=0)
+        self.tau_std = np.std(taus, ddof=1, axis=0)
+
+        self.elastic_signal = original_elastic_signal.copy()
+        self.inelastic_signal = original_inelastic_signal.copy()
+
+        return (self._alpha["elastic_aer"].copy(),
+                self._alpha_std.copy(),
+                self._beta["aer"].copy(),
+                self._beta_std.copy(),
+                self._lidar_ratio,
+                self._lidar_ratio_std,
+                self.tau,
+                self.tau_std)
