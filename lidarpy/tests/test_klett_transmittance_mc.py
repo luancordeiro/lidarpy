@@ -54,7 +54,6 @@ plt.xlabel("altitude (m)")
 plt.grid()
 plt.show()
 
-
 klett = Klett(ds,
               355,
               df_sonde["pressure"].to_numpy(),
