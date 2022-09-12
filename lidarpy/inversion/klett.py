@@ -65,19 +65,25 @@ class Klett:
     _beta = dict()
     _beta_std = None
     _lr = dict()
+    tau = None
+    tau_std = None
     fit_parameters = None
     _calib_strategies = {True: calib_strategy1, False: calib_strategy2}
 
     def __init__(self, lidar_data: xr.Dataset, wavelength: int, lidar_ratio: float, p_air: np.ndarray,
                  t_air: np.ndarray, z_ref: list, pc: bool = True, co2ppmv: int = 392, correct_noise: bool = True,
-                 mc_iter=None):
+                 mc_iter=None, tau_ind=None):
         if wavelength in lidar_data.dims:
             self.signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
         else:
             self.signal = lidar_data.data
 
+        if ((mc_iter is not None) & (tau_ind is None)) | ((mc_iter is None) & (tau_ind is not None)):
+            raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
+
         self.z = lidar_data.coords["altitude"].data
         self.mc_iter = mc_iter
+        self.tau_ind = tau_ind
         self.ref = lidar_data.coords["altitude"].sel(altitude=z_ref, method="nearest").data
         self._calib_strategy = self._calib_strategies[correct_noise]
         self._lr['aer'] = lidar_ratio
@@ -133,6 +139,7 @@ class Klett:
 
             betas_aer = []
             alphas_aer = []
+            taus = []
             for signal in signals:
                 beta_ref, signal, ref0 = self._calib(signal)
 
@@ -151,18 +158,23 @@ class Klett:
                                  - self._beta['mol'])
 
                 alphas_aer.append(betas_aer[-1] * self._lr['aer'])
+                taus.append(trapz(alphas_aer[-1][self.tau_ind], self.z[self.tau_ind]))
             self._alpha['aer'] = np.mean(alphas_aer, axis=0)
             self._alpha['tot'] = self._alpha['mol'] + self._alpha['aer']
             self._alpha_std = np.std(alphas_aer, ddof=1, axis=0)
             self._beta['aer'] = np.mean(betas_aer, axis=0)
             self._beta_std = np.std(betas_aer, ddof=1, axis=0)
             self._beta['tot'] = self._beta['aer'] + self._beta['mol']
+            self.tau = np.mean(taus)
+            self.tau_std = np.std(taus, ddof=1)
 
             return (self._alpha["aer"].copy(),
                     self._alpha_std.copy(),
                     self._beta["aer"].copy(),
                     self._beta_std.copy(),
-                    self._lr["aer"])
+                    self._lr["aer"],
+                    self.tau,
+                    self.tau_std)
 
         beta_ref, signal, ref0 = self._calib(self.signal)
 
@@ -182,5 +194,7 @@ class Klett:
         self._alpha['aer'] = self._beta['aer'] * self._lr['aer']
 
         self._alpha['tot'] = self._alpha['mol'] + self._alpha['aer']
+
+        self.tau = trapz(self._alpha["aer"], self.z)
 
         return self._alpha["aer"].copy(), self._beta["aer"].copy(), self._lr["aer"]
