@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import cumtrapz
-from lidarpy.inversion.transmittance import Transmittance
 from lidarpy.inversion.klett import Klett
 from lidarpy.plot.plotter import plot_3graph_std
 
@@ -39,12 +38,10 @@ plt.xlabel("altitude (m)")
 plt.grid()
 plt.show()
 
-NBINS = 50
-
 plt.figure(figsize=(12, 7))
 plt.plot(ds.coords["altitude"].data, ds.data * ds.coords["altitude"].data ** 2)
-indx1 = (ds.coords["altitude"].data > 5800 - NBINS * 7.5) & (ds.coords["altitude"].data < 5800)
-indx2 = (ds.coords["altitude"].data > 6150) & (ds.coords["altitude"].data < 6150 + NBINS * 7.5)
+indx1 = (ds.coords["altitude"].data < 5800) & (ds.coords["altitude"].data > 5050)
+indx2 = (ds.coords["altitude"].data > 6150) & (ds.coords["altitude"].data < 6900)
 plt.plot(ds.coords["altitude"].data[indx1 | indx2],
          (ds.data * ds.coords["altitude"].data ** 2)[indx1 | indx2],
          "*",
@@ -56,22 +53,15 @@ plt.xlabel("altitude (m)")
 plt.grid()
 plt.show()
 
-tau = Transmittance(ds,
-                    [5800, 6150],
-                    355,
-                    df_sonde["pressure"].to_numpy(),
-                    df_sonde["temperature"].to_numpy()).fit(NBINS)
-
-print("----------------------------")
-print(f"AOD_transmittance = {tau.round(2)}")
-print("----------------------------")
+indx_tau = (ds.coords["altitude"].data > 5700) & (ds.coords["altitude"].data < 6300)
 
 klett = Klett(ds,
               355,
               df_sonde["pressure"].to_numpy(),
               df_sonde["temperature"].to_numpy(),
               [6500, 14000],
-              28)
+              tau_ind=indx_tau,
+              z_lims=[5800, 6150])
 
 alpha, beta, lr = klett.fit()
 

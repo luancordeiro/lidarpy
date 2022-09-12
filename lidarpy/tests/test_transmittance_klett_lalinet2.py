@@ -24,6 +24,7 @@ df_sonde = (df_sonde
 print()
 print(df_sonde.head())
 print()
+
 z = ds.coords["altitude"].data
 ind = (z > 5750) & (z < 10000)
 plt.figure(figsize=(12, 7))
@@ -37,7 +38,7 @@ tau = Transmittance(ds,
                     [5800, 6150],
                     355,
                     df_sonde["pressure"].to_numpy(),
-                    df_sonde["temperature"].to_numpy()).fit(30)
+                    df_sonde["temperature"].to_numpy()).fit(50)
 
 print("----------------------------")
 print(f"AOD_transmittance = {tau.round(2)}")
@@ -45,10 +46,10 @@ print("----------------------------")
 
 klett = Klett(ds,
               355,
-              28,
               df_sonde["pressure"].to_numpy(),
               df_sonde["temperature"].to_numpy(),
-              [6500, 14000])
+              [6500, 14000],
+              28)
 
 alpha, beta, lr = klett.fit()
 
