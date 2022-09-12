@@ -10,7 +10,7 @@ class Transmittance:
     tau = None
 
     def __init__(self,
-                 lidar_data: xr.Dataset,
+                 lidar_data: xr.DataArray,
                  z_lims: list,
                  wavelength: int,
                  p_air: np.ndarray,

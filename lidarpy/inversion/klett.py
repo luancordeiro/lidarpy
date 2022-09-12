@@ -74,7 +74,7 @@ class Klett:
     fit_parameters = None
     _calib_strategies = {True: calib_strategy1, False: calib_strategy2}
 
-    def __init__(self, lidar_data: xr.Dataset, wavelength: int, p_air: np.ndarray, t_air: np.ndarray, z_ref: list,
+    def __init__(self, lidar_data: xr.DataArray, wavelength: int, p_air: np.ndarray, t_air: np.ndarray, z_ref: list,
                  lidar_ratio: float = None, pc: bool = True, co2ppmv: int = 392, correct_noise: bool = True,
                  mc_iter: int = None, tau_ind: np.array = None, z_lims: list = None):
         if wavelength in lidar_data.dims:

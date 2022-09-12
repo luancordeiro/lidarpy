@@ -62,7 +62,7 @@ class Raman:
     _diff_window = 7
     _diff_strategy = diff_linear_regression
 
-    def __init__(self, lidar_data: xr.Dataset, lidar_wavelength: int, raman_wavelength: int, angstrom_coeff: float,
+    def __init__(self, lidar_data: xr.DataArray, lidar_wavelength: int, raman_wavelength: int, angstrom_coeff: float,
                  p_air: np.array, t_air: np.array, z_ref: int, pc: bool = True, co2ppmv: int = 392):
         data_label = [f"{wave}_{int(pc)}" for wave in [lidar_wavelength, raman_wavelength]]
         self.elastic_signal = lidar_data.sel(wavelength=data_label[0]).data
