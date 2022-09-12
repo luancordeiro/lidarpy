@@ -1,4 +1,4 @@
-from lidarpy import GetData
+from lidarpy.data.read_binary import GetData
 from lidarpy.data.manipulation import remove_background, atmospheric_interpolation
 from lidarpy.inversion.transmittance import Transmittance
 import os
