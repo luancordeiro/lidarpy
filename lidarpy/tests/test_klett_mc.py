@@ -6,6 +6,7 @@ from lidarpy.inversion.klett import Klett
 from lidarpy.plot.plotter import plot_3graph_std
 
 link = "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500.txt"
+# link = "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500_v2.txt"
 my_data = np.genfromtxt(link)
 
 ds = xr.DataArray(my_data[:, 1], dims=["altitude"])

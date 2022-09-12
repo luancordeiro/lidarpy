@@ -70,6 +70,7 @@ class Klett:
     _lr = dict()
     tau = None
     tau_std = None
+    mc_iter = None
     fit_parameters = None
     _calib_strategies = {True: calib_strategy1, False: calib_strategy2}
 
@@ -84,12 +85,11 @@ class Klett:
         if (mc_iter is not None) & (tau_ind is None):
             raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
 
-        if (lidar_ratio is None) & (z_lims is None):
+        if (lidar_ratio is None) & ((z_lims is None) | (tau_ind is None)):
             raise Exception("Para realizar o calculo da razão lidar utilizando o método da transmitância é preciso "
-                            "definir o z_lims")
+                            "definir o z_lims e tau_ind")
 
         self.z = lidar_data.coords["altitude"].data
-        self.mc_iter = mc_iter
         self.tau_ind = tau_ind
         self.ref = lidar_data.coords["altitude"].sel(altitude=z_ref, method="nearest").data
         self._calib_strategy = self._calib_strategies[correct_noise]
@@ -98,6 +98,7 @@ class Klett:
 
         self._lr['aer'] = (self._transmittance_lr(lidar_data, tau_ind, z_lims, wavelength, p_air, t_air, pc, co2ppmv)
                            if lidar_ratio is None else lidar_ratio)
+        self.mc_iter = mc_iter
 
     def __str__(self):
         return f"Lidar ratio = {self._lr['aer']}"

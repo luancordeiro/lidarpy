@@ -2,12 +2,12 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.integrate import cumtrapz
-from lidarpy.inversion.transmittance import Transmittance
 from lidarpy.inversion.klett import Klett
 from lidarpy.plot.plotter import plot_3graph_std
 
-link = "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500.txt"
+# link = "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500.txt"
+link = "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500_v2.txt"
+
 my_data = np.genfromtxt(link)
 
 ds = xr.DataArray(my_data[:, 1], dims=["altitude"])
@@ -39,57 +39,47 @@ plt.xlabel("altitude (m)")
 plt.grid()
 plt.show()
 
-NBINS = 50
+indx_tau = (ds.coords["altitude"].data > 5700) & (ds.coords["altitude"].data < 6300)
 
 plt.figure(figsize=(12, 7))
 plt.plot(ds.coords["altitude"].data, ds.data * ds.coords["altitude"].data ** 2)
-indx1 = (ds.coords["altitude"].data > 5800 - NBINS * 7.5) & (ds.coords["altitude"].data < 5800)
-indx2 = (ds.coords["altitude"].data > 6150) & (ds.coords["altitude"].data < 6150 + NBINS * 7.5)
-plt.plot(ds.coords["altitude"].data[indx1 | indx2],
-         (ds.data * ds.coords["altitude"].data ** 2)[indx1 | indx2],
+plt.plot(ds.coords["altitude"].data[indx_tau],
+         (ds.data * ds.coords["altitude"].data ** 2)[indx_tau],
          "*",
          color="red",
-         label="transmittance mean region")
+         label="tau region")
 plt.legend()
 plt.ylabel("RCS")
 plt.xlabel("altitude (m)")
 plt.grid()
 plt.show()
 
-tau = Transmittance(ds,
-                    [5800, 6150],
-                    355,
-                    df_sonde["pressure"].to_numpy(),
-                    df_sonde["temperature"].to_numpy()).fit(NBINS)
-
-print("----------------------------")
-print(f"AOD_transmittance = {tau.round(2)}")
-print("----------------------------")
 
 klett = Klett(ds,
               355,
               df_sonde["pressure"].to_numpy(),
               df_sonde["temperature"].to_numpy(),
               [6500, 14000],
-              28)
+              mc_iter=200,
+              tau_ind=indx_tau,
+              z_lims=[5800, 6150])
 
-alpha, beta, lr = klett.fit()
+alpha, alpha_std, beta, beta_std, lr, tau, tau_std = klett.fit()
 
 ind = (ds.coords["altitude"] > 4000) & (ds.coords["altitude"] < 8000)
 
 plot_3graph_std(ds.coords["altitude"][ind],
                 alpha[ind],
                 beta[ind],
-                lr * np.ones(alpha.shape)[ind])
+                lr * np.ones(alpha.shape)[ind],
+                alpha_std[ind],
+                beta_std[ind],
+                lr * np.zeros(alpha.shape)[ind])
 
-AOD = cumtrapz(alpha[ind],
-               ds.coords["altitude"][ind],
-               initial=0)
-
-plt.figure(figsize=(12, 7))
-plt.plot(ds.coords["altitude"][ind], AOD)
-plt.title(f"AOD[-1]={AOD[-1].round(3)}")
-plt.ylabel("AOD")
-plt.xlabel("Altitude (m)")
-plt.grid()
+plt.errorbar(ds.coords["altitude"][ind],
+             alpha[ind],
+             alpha_std[ind])
 plt.show()
+
+print("----")
+print(f"{tau.round(3)} +- {tau_std.round(3)}")
