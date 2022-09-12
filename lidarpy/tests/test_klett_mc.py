@@ -2,8 +2,6 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.integrate import cumtrapz
-from lidarpy.inversion.transmittance import Transmittance
 from lidarpy.inversion.klett import Klett
 from lidarpy.plot.plotter import plot_3graph_std
 
@@ -57,10 +55,10 @@ plt.show()
 
 klett = Klett(ds,
               355,
-              28,
               df_sonde["pressure"].to_numpy(),
               df_sonde["temperature"].to_numpy(),
               [6500, 14000],
+              28,
               mc_iter=200,
               tau_ind=indx_tau)
 
