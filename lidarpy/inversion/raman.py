@@ -75,16 +75,19 @@ class Raman:
         self.elastic_signal = lidar_data.sel(wavelength=data_label[0]).data
         self.inelastic_signal = lidar_data.sel(wavelength=data_label[1]).data
         self.z = lidar_data.coords["altitude"].data
+        self.p_air = p_air
+        self.t_air = t_air
+        self.mc_iter = mc_iter
+        self.tau_ind = tau_ind
+        self.lidar_wavelength = lidar_wavelength * 1e-9
+        self.raman_wavelength = raman_wavelength * 1e-9
+        self.angstrom_coeff = angstrom_coeff
+        self.co2ppmv = co2ppmv
 
         z_ref = lidar_data.coords["altitude"].sel(altitude=z_ref, method="nearest").data
         z_delta_ref = lidar_data.coords["altitude"].sel(altitude=z_ref - 1500, method="nearest").data
         self._ref = np.where(self.z == z_ref)[0][0]
         self._delta_ref = self._ref - np.where(self.z == z_delta_ref)[0][0]
-
-        self.p_air, self.t_air, self.mc_iter, self.tau_ind = p_air, t_air, mc_iter, tau_ind
-        self.lidar_wavelength, self.raman_wavelength = lidar_wavelength * 1e-9, raman_wavelength * 1e-9
-        self.angstrom_coeff = angstrom_coeff
-        self.co2ppmv = co2ppmv
 
         self._get_alpha_beta_molecular(co2ppmv)
 
