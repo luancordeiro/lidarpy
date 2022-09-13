@@ -78,3 +78,12 @@ def plot_3graph_std(z,
         plt.savefig(f"{save_name}")
 
     plt.show()
+
+
+def compare_w_sol(x, y_comp, y_exact, ylabel):
+    plt.plot(x, y_comp, "-", linewidth=2, color="black", label="comp")
+    plt.plot(x, y_exact, "--", linewidth=1.5, color="red", label="exact")
+    plt.xlabel("Height (m)")
+    plt.ylabel(ylabel)
+    plt.grid()
+    plt.show()
