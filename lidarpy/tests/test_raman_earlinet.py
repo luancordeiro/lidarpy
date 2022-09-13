@@ -9,7 +9,9 @@ df_raman_signals = pd.read_csv("data/raman/raman_signal.txt")
 df_temp_pressure = pd.read_csv("data/raman/temp_pressure.txt")
 df_sol = pd.read_csv("data/raman/sol.txt")
 
-print(df_sol.c)
+df_sol = df_sol.assign(Backscatter=lambda x: x["Extinction"] / x["Lidarratio"])
+
+print(df_sol.columns)
 
 indx = np.arange(25, 1000)
 
@@ -30,5 +32,12 @@ alpha, beta, lr = Raman(ds.isel(altitude=indx),
                         temperature[indx],
                         12_000).fit(diff_)
 
-compare_w_sol(ds.coords["altitude"],
-              df_sol[""])
+compare_w_sol(ds.coords["altitude"].data[indx],
+              alpha,
+              df_sol["Extinction"][indx],
+              "Extinction")
+
+compare_w_sol(ds.coords["altitude"].data[indx],
+              beta,
+              df_sol["Backscatter"][indx],
+              "Backscatter")

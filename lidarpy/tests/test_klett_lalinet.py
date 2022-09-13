@@ -5,11 +5,17 @@ import matplotlib.pyplot as plt
 from scipy.integrate import cumtrapz
 from lidarpy.inversion.transmittance import Transmittance
 from lidarpy.inversion.klett import Klett
-from lidarpy.plot.plotter import plot_3graph_std
+from lidarpy.plot.plotter import plot_3graph_std, compare_w_sol
 
-link = "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500.txt"
-# link = "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500_v2.txt"
-my_data = np.genfromtxt(link)
+weak_cloud = 1
+
+link = ["http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500.txt",
+        "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500_v2.txt"]
+
+if weak_cloud:
+    df_sol = pd.read_csv("data/sol_lalinet_weak_cloud.txt", delimiter="\t")
+
+my_data = np.genfromtxt(link[weak_cloud])
 
 ds = xr.DataArray(my_data[:, 1], dims=["altitude"])
 ds.coords["altitude"] = my_data[:, 0]
@@ -94,3 +100,14 @@ plt.ylabel("AOD")
 plt.xlabel("Altitude (m)")
 plt.grid()
 plt.show()
+
+if weak_cloud:
+    compare_w_sol(ds.coords["altitude"].data[ind],
+                  alpha[ind],
+                  df_sol["alpha-cld"].to_numpy()[ind],
+                  "Extinction")
+
+    compare_w_sol(ds.coords["altitude"].data[ind],
+                  beta[ind],
+                  df_sol["beta-cld"].to_numpy()[ind],
+                  "Backscatter")
