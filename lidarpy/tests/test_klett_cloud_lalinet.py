@@ -46,23 +46,6 @@ plt.xlabel("altitude (m)")
 plt.grid()
 plt.show()
 
-NBINS = 50
-
-plt.figure(figsize=(12, 7))
-plt.plot(ds.coords["altitude"].data, ds.data * ds.coords["altitude"].data ** 2)
-indx1 = (ds.coords["altitude"].data > 5800 - NBINS * 7.5) & (ds.coords["altitude"].data < 5800)
-indx2 = (ds.coords["altitude"].data > 6150) & (ds.coords["altitude"].data < 6150 + NBINS * 7.5)
-plt.plot(ds.coords["altitude"].data[indx1 | indx2],
-         (ds.data * ds.coords["altitude"].data ** 2)[indx1 | indx2],
-         "*",
-         color="red",
-         label="transmittance mean region")
-plt.legend()
-plt.ylabel("RCS")
-plt.xlabel("altitude (m)")
-plt.grid()
-plt.show()
-
 tau = Transmittance(ds,
                     [5800, 6150],
                     355,

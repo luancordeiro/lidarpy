@@ -18,10 +18,6 @@ ds = xr.DataArray([df_elastic_signals["MeanSignal"], df_raman_signals["MeanSigna
 
 plt.plot(ds.coords["altitude"].data,
          ds.sel(wavelength="355_1").data * ds.coords["altitude"].data ** 2)
-plt.xlabel("Altitude (m)")
-plt.ylabel("RCS")
-plt.grid()
-plt.show()
 
 nbins = 5
 ds = ds.pipe(groupby_nbins, nbins)
