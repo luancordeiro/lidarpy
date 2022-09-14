@@ -150,7 +150,7 @@ class Klett:
                                           p_air,
                                           t_air,
                                           pc,
-                                          co2ppmv).fit(50)
+                                          co2ppmv).fit()
 
         print(f"tau transmittance = {tau_transmittance.round(2)}")
 
