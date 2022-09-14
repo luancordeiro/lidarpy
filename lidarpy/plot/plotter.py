@@ -80,10 +80,10 @@ def plot_3graph_std(z,
     plt.show()
 
 
-def compare_w_sol(x, y_comp, y_exact, ylabel):
+def compare_w_sol(x_comp, y_comp, x_exact, y_exact, ylabel):
     plt.figure(figsize=(12, 7))
-    plt.plot(x, y_comp, "-", linewidth=2.5, color="black", alpha=0.6, label="comp")
-    plt.plot(x, y_exact, "--", linewidth=2, color="red", alpha=0.7, label="exact")
+    plt.plot(x_comp, y_comp, "-", linewidth=2.5, color="black", alpha=0.6, label="comp")
+    plt.plot(x_exact, y_exact, "--", linewidth=2, color="red", alpha=0.7, label="exact")
     plt.legend()
     plt.xlabel("Height (m)")
     plt.ylabel(ylabel)
