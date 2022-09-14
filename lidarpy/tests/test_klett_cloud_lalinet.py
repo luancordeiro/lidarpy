@@ -101,8 +101,6 @@ plt.xlabel("Altitude (m)")
 plt.grid()
 plt.show()
 
-print(df_sol.columns)
-
 if weak_cloud:
     compare_w_sol(ds.coords["altitude"].data[ind],
                   alpha[ind],
