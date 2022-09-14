@@ -45,10 +45,10 @@ compare_w_sol(ds.coords["altitude"].data[indx],
               alpha,
               df_sol["Altitude"][indx_sol],
               df_sol["Extinction"][indx_sol],
-              "Extinction")
+              0)
 
 compare_w_sol(ds.coords["altitude"].data[indx],
               beta,
               df_sol["Altitude"][indx_sol],
               df_sol["Backscatter"][indx_sol],
-              "Backscatter")
+              1)
