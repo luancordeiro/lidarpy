@@ -53,5 +53,6 @@ for link, title in zip(links, titles):
     ind = (ds.coords["altitude"] > 4000) & (ds.coords["altitude"] < 8000)
     compare_w_sol(ds.coords["altitude"].data[ind],
                   alpha[ind],
+                  df_sol["z"].to_numpy()[ind],
                   df_sol["alpha-cld"].to_numpy()[ind],
                   "Extinction")

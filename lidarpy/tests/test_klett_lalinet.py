@@ -67,7 +67,7 @@ tau = Transmittance(ds,
                     [5800, 6150],
                     355,
                     df_sonde["pressure"].to_numpy(),
-                    df_sonde["temperature"].to_numpy()).fit(NBINS)
+                    df_sonde["temperature"].to_numpy()).fit()
 
 print("----------------------------")
 print(f"AOD_transmittance = {tau.round(2)}")
@@ -101,13 +101,17 @@ plt.xlabel("Altitude (m)")
 plt.grid()
 plt.show()
 
+print(df_sol.columns)
+
 if weak_cloud:
     compare_w_sol(ds.coords["altitude"].data[ind],
                   alpha[ind],
+                  df_sol["z"].to_numpy()[ind],
                   df_sol["alpha-cld"].to_numpy()[ind],
                   "Extinction")
 
     compare_w_sol(ds.coords["altitude"].data[ind],
                   beta[ind],
+                  df_sol["z"].to_numpy()[ind],
                   df_sol["beta-cld"].to_numpy()[ind],
                   "Backscatter")
