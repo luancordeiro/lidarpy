@@ -85,7 +85,7 @@ class Raman:
         self.co2ppmv = co2ppmv
 
         z_ref = lidar_data.coords["altitude"].sel(altitude=z_ref, method="nearest").data
-        z_delta_ref = lidar_data.coords["altitude"].sel(altitude=z_ref - 1500, method="nearest").data
+        z_delta_ref = lidar_data.coords["altitude"].sel(altitude=z_ref - 2000, method="nearest").data
         self._ref = np.where(self.z == z_ref)[0][0]
         self._delta_ref = self._ref - np.where(self.z == z_delta_ref)[0][0]
 
@@ -215,6 +215,7 @@ class Raman:
 
         self.elastic_signal = original_elastic_signal.copy()
         self.inelastic_signal = original_inelastic_signal.copy()
+        self._mc_bool = True
 
         return (self._alpha["elastic_aer"].copy(),
                 self._alpha_std.copy(),
