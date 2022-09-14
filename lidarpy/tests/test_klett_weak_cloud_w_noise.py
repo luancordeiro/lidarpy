@@ -55,4 +55,4 @@ for link, title in zip(links, titles):
                   alpha[ind],
                   df_sol["z"].to_numpy()[ind],
                   df_sol["alpha-cld"].to_numpy()[ind],
-                  "Extinction")
+                  0)

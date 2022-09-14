@@ -81,6 +81,12 @@ def plot_3graph_std(z,
 
 
 def compare_w_sol(x_comp, y_comp, x_exact, y_exact, ylabel):
+    plt.rcParams.update({'font.family': 'serif', 'font.size': 22, 'font.weight': 'light'})
+    plt.rc('legend', fontsize=16)
+
+    labels = ["Extinction (1 / m)", "Backscatter (1 / (m sr))"]
+    ylabel = labels[ylabel] if type(ylabel) == int else ylabel
+
     plt.figure(figsize=(12, 7))
     plt.plot(x_comp, y_comp, "-", linewidth=2.5, color="black", alpha=0.6, label="comp")
     plt.plot(x_exact, y_exact, "--", linewidth=2, color="red", alpha=0.7, label="exact")

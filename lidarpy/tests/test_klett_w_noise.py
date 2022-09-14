@@ -64,4 +64,4 @@ for title, link in zip(titles, links):
                   alpha,
                   df_sol["altitude"],
                   df_sol["particle_extinction_coefficient"],
-                  "Extinction (1 / m)")
+                  0)

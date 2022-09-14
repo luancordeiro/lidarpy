@@ -89,10 +89,10 @@ if weak_cloud:
                   alpha[ind],
                   df_sol["z"].to_numpy()[ind],
                   df_sol["alpha-cld"].to_numpy()[ind],
-                  "Extinction")
+                  0)
 
     compare_w_sol(ds.coords["altitude"].data[ind],
                   beta[ind],
                   df_sol["z"].to_numpy()[ind],
                   df_sol["beta-cld"].to_numpy()[ind],
-                  "Backscatter")
+                  1)
