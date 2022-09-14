@@ -155,9 +155,9 @@ class Raman:
                         * (scatterer_numerical_density / self._ref_value(scatterer_numerical_density)))
 
         attenuation_ratio = (np.exp(-cumtrapz(x=self.z, y=self._alpha_inelastic_total(), initial=0)
-                                    + trapz(x=self.z[:self._ref], y=self._alpha_inelastic_total()[:self._ref]))
+                                    + trapz(x=self.z[:self._ref + 1], y=self._alpha_inelastic_total()[:self._ref + 1]))
                              / np.exp(-cumtrapz(x=self.z, y=self._alpha_elastic_total(), initial=0)
-                                      + trapz(x=self.z[:self._ref], y=self._alpha_elastic_total()[:self._ref])))
+                                      + trapz(x=self.z[:self._ref + 1], y=self._alpha_elastic_total()[:self._ref + 1])))
 
         beta_ref = self._ref_value(self._beta["elastic_mol"])
 
@@ -165,7 +165,7 @@ class Raman:
 
     def fit(self, diff_strategy=diff_linear_regression, diff_window=7):
         if (self.mc_iter is not None) & self._mc_bool:
-            return self._mc_fit(diff_strategy=diff_linear_regression, diff_window=7)
+            return self._mc_fit(diff_strategy=diff_strategy, diff_window=diff_window)
         self._diff_window = diff_window
         self._diff_strategy = diff_strategy
 

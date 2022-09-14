@@ -20,6 +20,7 @@ plt.plot(ds.coords["altitude"].data,
          ds.sel(wavelength="355_1").data * ds.coords["altitude"].data ** 2)
 
 nbins = 5
+
 ds = ds.pipe(groupby_nbins, nbins)
 df_temp_pressure = df_temp_pressure.groupby(df_temp_pressure.index // nbins).mean()
 
@@ -37,7 +38,7 @@ alpha, beta, lr = Raman(ds.isel(altitude=indx),
                         1.8,
                         df_temp_pressure["Pressure"].to_numpy()[indx],
                         df_temp_pressure["Temperature"].to_numpy()[indx],
-                        12_000).fit()
+                        12_000).fit(diff_window=3)
 
 indx_sol = (df_sol["Altitude"] > 300) & (df_sol["Altitude"] < 9000)
 
