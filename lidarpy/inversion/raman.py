@@ -202,7 +202,7 @@ class Raman:
             alphas.append(alpha)
             betas.append(beta)
             lrs.append(lr)
-            taus.append(trapz(alpha[-1][self.tau_ind], self.z[self.tau_ind]))
+            taus.append(trapz(alphas[-1][self.tau_ind], self.z[self.tau_ind]))
 
         self._alpha["elastic_aer"] = np.mean(alphas, axis=0)
         self._alpha_std = np.std(alphas, ddof=1, axis=0)

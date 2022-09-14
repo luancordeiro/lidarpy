@@ -73,6 +73,7 @@ class Klett:
     mc_iter = None
     fit_parameters = None
     _calib_strategies = {True: calib_strategy1, False: calib_strategy2}
+    _mc_bool = True
 
     def __init__(self, lidar_data: xr.DataArray, wavelength: int, p_air: np.ndarray, t_air: np.ndarray, z_ref: list,
                  lidar_ratio: float = None, pc: bool = True, co2ppmv: int = 392, correct_noise: bool = True,
@@ -186,47 +187,8 @@ class Klett:
         return new_lr[new_diff.argmin()]
 
     def fit(self):
-        if self.mc_iter is not None:
-            signals = np.random.poisson(self.signal, size=(self.mc_iter, len(self.signal)))
-
-            betas_aer = []
-            alphas_aer = []
-            taus = []
-            for signal in signals:
-                beta_ref, signal, ref0 = self._calib(signal)
-
-                corrected_signal = signal * self.z ** 2
-
-                spp = corrected_signal * np.exp(- 2 * cumtrapz(x=self.z,
-                                                               y=(self._lr['aer']
-                                                                  - self._lr['mol']) * self._beta['mol'],
-                                                               initial=0))
-
-                sppr = spp / spp[ref0]
-
-                betas_aer.append(sppr / (1 / beta_ref - (cumtrapz(x=self.z, y=2 * self._lr['aer'] * sppr, initial=0)
-                                                         - trapz(x=self.z[:ref0],
-                                                                 y=2 * self._lr['aer'] * sppr[:ref0])))
-                                 - self._beta['mol'])
-
-                alphas_aer.append(betas_aer[-1] * self._lr['aer'])
-                taus.append(trapz(alphas_aer[-1][self.tau_ind], self.z[self.tau_ind]))
-            self._alpha['aer'] = np.mean(alphas_aer, axis=0)
-            self._alpha['tot'] = self._alpha['mol'] + self._alpha['aer']
-            self._alpha_std = np.std(alphas_aer, ddof=1, axis=0)
-            self._beta['aer'] = np.mean(betas_aer, axis=0)
-            self._beta_std = np.std(betas_aer, ddof=1, axis=0)
-            self._beta['tot'] = self._beta['aer'] + self._beta['mol']
-            self.tau = np.mean(taus)
-            self.tau_std = np.std(taus, ddof=1)
-
-            return (self._alpha["aer"].copy(),
-                    self._alpha_std.copy(),
-                    self._beta["aer"].copy(),
-                    self._beta_std.copy(),
-                    self._lr["aer"],
-                    self.tau,
-                    self.tau_std)
+        if (self.mc_iter is not None) & self._mc_bool:
+            return self._mc_fit()
 
         beta_ref, signal, ref0 = self._calib(self.signal)
 
@@ -250,3 +212,38 @@ class Klett:
         self.tau = trapz(self._alpha["aer"], self.z)
 
         return self._alpha["aer"].copy(), self._beta["aer"].copy(), self._lr["aer"]
+
+    def _mc_fit(self):
+        self._mc_bool = False
+
+        original_signal = self.signal.copy()
+        signals = np.random.poisson(self.signal, size=(self.mc_iter, len(self.signal)))
+
+        betas = []
+        alphas = []
+        taus = []
+        for signal in signals:
+            self.signal = signal.copy()
+            alpha, beta, _ = self.fit()
+            alphas.append(alpha)
+            betas.append(beta)
+            taus.append(trapz(alphas[-1][self.tau_ind], self.z[self.tau_ind]))
+
+        self._alpha['aer'] = np.mean(alphas, axis=0)
+        self._alpha['tot'] = self._alpha['mol'] + self._alpha['aer']
+        self._alpha_std = np.std(alphas, ddof=1, axis=0)
+        self._beta['aer'] = np.mean(betas, axis=0)
+        self._beta_std = np.std(betas, ddof=1, axis=0)
+        self._beta['tot'] = self._beta['aer'] + self._beta['mol']
+        self.tau = np.mean(taus)
+        self.tau_std = np.std(taus, ddof=1)
+
+        self.signal = original_signal.copy()
+        self._mc_bool = True
+        return (self._alpha["aer"].copy(),
+                self._alpha_std.copy(),
+                self._beta["aer"].copy(),
+                self._beta_std.copy(),
+                self._lr["aer"],
+                self.tau,
+                self.tau_std)
