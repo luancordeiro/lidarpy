@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 import pandas as pd
@@ -12,28 +13,36 @@ def _datevec(ordinal):
 
 
 class CloudFinder:
+    _alt_max = 25000
+
     def __init__(self, lidar_data: xr.DataArray, sigma, wavelength: int, ref_min: int, window: int, jdz: float,
-                 pc: bool):
-        self._original_data = lidar_data.copy()
-        self.z = lidar_data.coords["altitude"][ref_min:self._find_alt(30_000)]
-        self.sigma = sigma
-        self.signal = (lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
-                       if wavelength in lidar_data.dims else lidar_data.data)[ref_min:self._find_alt(30_000)]
+                 pc: bool = True):
+        self._original_data = (lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}")
+                               if "wavelength" in lidar_data.dims else lidar_data)
+        alt = self._original_data.coords["altitude"].sel(altitude=self._alt_max, method="nearest").data
+        ref = np.where(self._original_data.coords["altitude"] == alt)[0][0]
+        self.z = lidar_data.coords["altitude"][ref_min:ref].data
+        self.sigma = sigma[ref_min:ref]
+        self.signal = self._original_data.data[ref_min:ref]
         self.window = window
         self.jdz = jdz
 
     def _find_alt(self, alt: float) -> int:
-        return self._original_data.coords["altitude"].sel(altitude=alt, method="nearest").data[0]
+        return np.where(abs(self.z - alt) == min(abs(self.z - alt)))[0][0]
 
     def _smooth(self, vec: np.array, window: int = None) -> np.array:
         window = self.window if window is None else window
         return pd.Series(vec).rolling(window, min_periods=1).mean().to_numpy()
 
     def _rcs_with_smooth(self):
-        signal_w_smooth = self._smooth(self.signal)
-        z_aux = self.z[::self.window]
+        signal_w_smooth = self._smooth(self._original_data.data)
+        z_aux = self._original_data.coords["altitude"].data[::self.window]
         rcs_aux = signal_w_smooth[::self.window] * z_aux ** 2
         f_rcs = interp1d(z_aux, rcs_aux)
+        print(len(z_aux))
+        print(len(self.z))
+        print(z_aux[-1])
+        print(self.z[-1])
         rcs_smooth = f_rcs(self.z)
         rcs_smooth[self.z > 5000] = self._smooth(rcs_smooth[self.z > 5000], 2)
 
@@ -43,43 +52,48 @@ class CloudFinder:
         return rcs_smooth, rcs_smooth_2, rcs_smooth_3
 
     def _sigma_rcs(self):
-        sigma_rcs_smooth = np.sqrt((self._smooth((self.sigma / self.window) ** 2) * self.window)) * self.z ** 2
-        for alt in [7000, 5000, 3000]:
+        sigma_rcs_smooth = np.sqrt(self._smooth((self.sigma / self.window) ** 2) * self.window) * self.z ** 2
+        sigma_rcs_smooth_2 = sigma_rcs_smooth.copy()
+        for alt, coef in zip([7000, 5000, 3000], [1, 3, 1]):
             ref = self._find_alt(alt)
-            sigma_rcs_smooth[:ref] = sigma_rcs_smooth[:ref] + sigma_rcs_smooth[ref]
-        return sigma_rcs_smooth
+            sigma_rcs_smooth[:ref + 1] = coef * sigma_rcs_smooth[ref + 1] + sigma_rcs_smooth[:ref + 1]
+        return sigma_rcs_smooth, sigma_rcs_smooth_2
 
-    def _stat_test(self, rcs_smooth: np.array, sigma_rcs_smooth: np.array, rcs_smooth_sm_2: np.array,
+    def _stat_test(self, rcs_smooth: np.array, sigma_rcs_smooth_2: np.array, rcs_smooth_sm_2: np.array,
                    rcs_smooth_sm_3: np.array):
         rcs_smooth_exc = rcs_smooth_sm_2.copy()
 
         asfend = 25
         init = 1
+        plt.figure()
         for asf in range(asfend + 1):
             rcs_smooth_aux = rcs_smooth.copy()
             npp = 500
             if (asf <= 15) & (asf > init):
-                test_z_rcs_smooth_sm = (rcs_smooth_aux - rcs_smooth_sm_2) / sigma_rcs_smooth
+                test_z_rcs_smooth_sm = (rcs_smooth_aux - rcs_smooth_sm_2) / sigma_rcs_smooth_2
                 mask_aux = test_z_rcs_smooth_sm > 1.5
             else:
-                test_z_rcs_smooth_sm = np.abs(rcs_smooth_aux - rcs_smooth_sm_2) / sigma_rcs_smooth
+                test_z_rcs_smooth_sm = np.abs(rcs_smooth_aux - rcs_smooth_sm_2) / sigma_rcs_smooth_2
                 mask_aux = test_z_rcs_smooth_sm > 0.2
 
             rcs_smooth_aux[mask_aux] = rcs_smooth_sm_2[mask_aux]
 
             rcs_smooth_sm_2 = self._smooth(rcs_smooth_aux, npp) if asf != asfend else self._smooth(rcs_smooth_aux, 70)
 
-            m_aux = rcs_smooth_sm_2 > rcs_smooth_sm_3 + 0.5 * sigma_rcs_smooth
+            m_aux = rcs_smooth_sm_2 > rcs_smooth_sm_3 + 0.5 * sigma_rcs_smooth_2
             rcs_smooth_sm_2[m_aux] = rcs_smooth_sm_3[m_aux]
 
             rcs_smooth_exc = rcs_smooth_sm_2.copy()
 
-            if asf == 2:
+            plt.plot(self.z, rcs_smooth_exc)
+
+            if asf == 1:
                 p_test = rcs_smooth_exc.copy()
             if asf == asfend - 1:
                 r_ts = self.z < 10_000
                 rcs_smooth_exc[r_ts] = p_test[r_ts]
                 rcs_smooth_sm_2[r_ts] = p_test[r_ts]
+        plt.show()
 
         return rcs_smooth_exc
 
@@ -90,7 +104,7 @@ class CloudFinder:
         n1 = 2
         hour = _datevec(self.jdz).hour
 
-        k9101112 = [min(abs(self.z - alt)) for alt in [9000, 10_000, 11_000, 12_000]]
+        k9101112 = [self._find_alt(alt) for alt in [9000, 10_000, 11_000, 12_000]]
 
         pa2, pd2 = 1, self.window
         rn = pa2 + pd2 + 1
@@ -128,8 +142,8 @@ class CloudFinder:
     def _smooth_diego_fast(self, y, p_before, p_after):
         sm = p_before + p_after + 1
         y_sm = self._smooth(y, sm)
-        y_sm4 = np.zeros(y_sm)
-        y_sm4[:-sm//2] = y_sm[sm // 2:]
+        y_sm4 = np.zeros(y_sm.shape)
+        y_sm4[:-sm//2 + 1] = y_sm[sm // 2:]
         return y_sm4
 
     def _comp(self, rcs_smooth_exc, ind_base, ind_top):
@@ -148,18 +162,36 @@ class CloudFinder:
         z_max_capa = np.nan
         nfz_max_capa = np.nan
 
-        for ib, it in zip(ind_base, ind_top):
-            max_ = self.signal[ib:it].max()
-            ind = np.where(self.signal == max_)[0]
-            z_max_capa = self.z[ind]
-            nfz_max_capa = max_ * z_max_capa ** 2
+        # for ib, it in zip(ind_base, ind_top):
+        #     max_ = max(self.signal[ib:it])
+        #     ind = np.where(self.signal == max_)[0][0]
+        #     z_max_capa = self.z[ind]
+        #     print("arrumar o nfz_max_capa")
+        #     nfz_max_capa = np.nan
 
         return z_base, z_top, z_max_capa, nfz_base, nfz_top, nfz_max_capa
 
     def fit(self):
         rcs_smooth, rcs_smooth_2, rcs_smooth_3 = self._rcs_with_smooth()
-        sigma_rcs_smooth = self._sigma_rcs()
+        sigma_rcs_smooth, sigma_rcs_smooth_2 = self._sigma_rcs()
         rcs, sigma_rcs = self.signal * self.z ** 2, self.sigma * self.z ** 2
-        rcs_smooth_exc = self._stat_test(rcs_smooth, sigma_rcs_smooth, rcs_smooth_2, rcs_smooth_3)
+
+        plt.plot(self.z / 1e3, rcs, "r-", label="original")
+        plt.plot(self.z / 1e3, rcs_smooth, "k-", label="suavizado")
+        plt.xlabel("Altitude (km)")
+        plt.ylabel("RCS")
+        plt.legend()
+        plt.grid()
+        plt.show()
+
+        rcs_smooth_exc = self._stat_test(rcs_smooth, sigma_rcs_smooth_2, rcs_smooth_2, rcs_smooth_3)
+
+        plt.plot(self.z / 1e3, rcs_smooth_exc, "r-", label="rcs_smooth_exc")
+        plt.xlabel("Altitude (km)")
+        plt.ylabel("RCS")
+        plt.legend()
+        plt.grid()
+        plt.show()
+
         ind_base, ind_top = self._cloud_finder(rcs, sigma_rcs, rcs_smooth, rcs_smooth_exc, sigma_rcs_smooth)
         return self._comp(rcs_smooth_exc, ind_base, ind_top)
