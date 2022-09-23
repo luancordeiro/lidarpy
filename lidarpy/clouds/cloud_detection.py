@@ -1,7 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
-import pandas as pd
 from scipy.interpolate import interp1d
 import datetime
 
@@ -30,9 +29,16 @@ class CloudFinder:
     def _find_alt(self, alt: float) -> int:
         return np.where(abs(self.z - alt) == min(abs(self.z - alt)))[0][0]
 
-    def _smooth(self, vec: np.array, window: int = None) -> np.array:
+    def _smooth(self, vec, window=None):
+        # a: NumPy 1-D array containing the data to be smoothed
+        # WSZ: smoothing window size needs, which must be odd number,
+        # as in the original MATLAB implementation
         window = self.window if window is None else window
-        return pd.Series(vec).rolling(window, min_periods=1).mean().to_numpy()
+        out0 = np.convolve(vec, np.ones(window, dtype=int), 'valid') / window
+        r = np.arange(1, window - 1, 2)
+        start = np.cumsum(vec[:window - 1])[::2] / r
+        stop = (np.cumsum(vec[:-window:-1])[::2] / r)[::-1]
+        return np.concatenate((start, out0, stop))
 
     def _rcs_with_smooth(self):
         signal_w_smooth = self._smooth(self._original_data.data)
@@ -44,31 +50,31 @@ class CloudFinder:
         print(z_aux[-1])
         print(self.z[-1])
         rcs_smooth = f_rcs(self.z)
-        rcs_smooth[self.z > 5000] = self._smooth(rcs_smooth[self.z > 5000], 2)
+        rcs_smooth[self.z > 5000] = self._smooth(rcs_smooth[self.z > 5000], 3)
 
-        rcs_smooth_2 = self._smooth(rcs_smooth, 70)
+        rcs_smooth_2 = self._smooth(rcs_smooth, 71)
         rcs_smooth_3 = rcs_smooth_2.copy()
 
         return rcs_smooth, rcs_smooth_2, rcs_smooth_3
 
     def _sigma_rcs(self):
         sigma_rcs_smooth = np.sqrt(self._smooth((self.sigma / self.window) ** 2) * self.window) * self.z ** 2
-        sigma_rcs_smooth_2 = sigma_rcs_smooth.copy()
         for alt, coef in zip([7000, 5000, 3000], [1, 3, 1]):
             ref = self._find_alt(alt)
             sigma_rcs_smooth[:ref + 1] = coef * sigma_rcs_smooth[ref + 1] + sigma_rcs_smooth[:ref + 1]
+        sigma_rcs_smooth_2 = sigma_rcs_smooth.copy()
         return sigma_rcs_smooth, sigma_rcs_smooth_2
 
-    def _stat_test(self, rcs_smooth: np.array, sigma_rcs_smooth_2: np.array, rcs_smooth_sm_2: np.array,
-                   rcs_smooth_sm_3: np.array):
+    def _get_signal_without_cloud(self, rcs_smooth: np.array, sigma_rcs_smooth_2: np.array, rcs_smooth_sm_2: np.array,
+                                  rcs_smooth_sm_3: np.array):
         rcs_smooth_exc = rcs_smooth_sm_2.copy()
 
         asfend = 25
         init = 1
-        plt.figure()
+        # plt.figure()
         for asf in range(asfend + 1):
             rcs_smooth_aux = rcs_smooth.copy()
-            npp = 500
+            npp = 501
             if (asf <= 15) & (asf > init):
                 test_z_rcs_smooth_sm = (rcs_smooth_aux - rcs_smooth_sm_2) / sigma_rcs_smooth_2
                 mask_aux = test_z_rcs_smooth_sm > 1.5
@@ -78,14 +84,12 @@ class CloudFinder:
 
             rcs_smooth_aux[mask_aux] = rcs_smooth_sm_2[mask_aux]
 
-            rcs_smooth_sm_2 = self._smooth(rcs_smooth_aux, npp) if asf != asfend else self._smooth(rcs_smooth_aux, 70)
+            rcs_smooth_sm_2 = self._smooth(rcs_smooth_aux, npp) if asf != asfend else self._smooth(rcs_smooth_aux, 71)
 
             m_aux = rcs_smooth_sm_2 > rcs_smooth_sm_3 + 0.5 * sigma_rcs_smooth_2
             rcs_smooth_sm_2[m_aux] = rcs_smooth_sm_3[m_aux]
 
             rcs_smooth_exc = rcs_smooth_sm_2.copy()
-
-            plt.plot(self.z, rcs_smooth_exc)
 
             if asf == 1:
                 p_test = rcs_smooth_exc.copy()
@@ -110,11 +114,19 @@ class CloudFinder:
         rn = pa2 + pd2 + 1
 
         tz_cond2 = (self._smooth_diego_fast(rcs - rcs_smooth_exc, pa2, pd2)
-                    / ((self._smooth_diego_fast((sigma_rcs / rn) ** 2, pa2, pd2) * rn) ** 5))
+                    / ((self._smooth_diego_fast((sigma_rcs / rn) ** 2, pa2, pd2) * rn) ** .5))
 
         r = (self.z < 5000) | (self.z > 22_000)
         tz_cond2[r] = 0
-        for cont, k in enumerate(range(3, self._find_alt(20_000))):
+
+        plt.plot(self.z, tz_cond2)
+        plt.show()
+
+        k = 2
+        cont = 0
+
+        while k <= self._find_alt(20_000):
+            k += 1
             cond1 = ((rcs_smooth[k + 0 * self.window] > (rcs_smooth_exc[k + 0 * self.window]
                                                          + n1 * sigma_rcs_smooth[k + 0 * self.window]))
                      & (rcs_smooth[k + 1 * self.window] > (rcs_smooth_exc[k + 1 * self.window]
@@ -128,13 +140,15 @@ class CloudFinder:
                 if (hour <= 6) | (hour >= 18):
                     if (self.z[k] > 10_000) & (sum(snr_exc[k9101112] < 0.1) > 0):
                         continue
-                ind_base.append(k - round(0 * self.window))
+                cont += 1
+                ind_base.append(k)
                 if ind_base[-1] <= 0:
                     ind_base = 1
 
                 for kk in range(k + self.window, len(self.z)):
                     if (rcs_smooth[kk] < rcs_smooth_exc[k]) & (rcs_smooth[kk] < rcs_smooth_exc[kk]):
                         ind_top.append(kk)
+                        k = kk+1
                         break
 
         return ind_base, ind_top
@@ -176,22 +190,22 @@ class CloudFinder:
         sigma_rcs_smooth, sigma_rcs_smooth_2 = self._sigma_rcs()
         rcs, sigma_rcs = self.signal * self.z ** 2, self.sigma * self.z ** 2
 
-        plt.plot(self.z / 1e3, rcs, "r-", label="original")
-        plt.plot(self.z / 1e3, rcs_smooth, "k-", label="suavizado")
-        plt.xlabel("Altitude (km)")
-        plt.ylabel("RCS")
-        plt.legend()
-        plt.grid()
-        plt.show()
+        # plt.plot(self.z / 1e3, rcs, "r-", label="original")
+        # plt.plot(self.z / 1e3, rcs_smooth, "k-", label="suavizado")
+        # plt.xlabel("Altitude (km)")
+        # plt.ylabel("RCS")
+        # plt.legend()
+        # plt.grid()
+        # plt.show()
 
-        rcs_smooth_exc = self._stat_test(rcs_smooth, sigma_rcs_smooth_2, rcs_smooth_2, rcs_smooth_3)
+        rcs_smooth_exc = self._get_signal_without_cloud(rcs_smooth, sigma_rcs_smooth_2, rcs_smooth_2, rcs_smooth_3)
 
-        plt.plot(self.z / 1e3, rcs_smooth_exc, "r-", label="rcs_smooth_exc")
-        plt.xlabel("Altitude (km)")
-        plt.ylabel("RCS")
-        plt.legend()
-        plt.grid()
-        plt.show()
+        # plt.plot(self.z / 1e3, rcs_smooth_exc, "r-", label="rcs_smooth_exc")
+        # plt.xlabel("Altitude (km)")
+        # plt.ylabel("RCS")
+        # plt.legend()
+        # plt.grid()
+        # plt.show()
 
         ind_base, ind_top = self._cloud_finder(rcs, sigma_rcs, rcs_smooth, rcs_smooth_exc, sigma_rcs_smooth)
         return self._comp(rcs_smooth_exc, ind_base, ind_top)

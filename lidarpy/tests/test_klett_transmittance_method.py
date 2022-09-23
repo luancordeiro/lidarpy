@@ -25,34 +25,34 @@ print()
 print(df_sonde.head())
 print()
 
-plt.figure(figsize=(12, 7))
-plt.plot(ds.coords["altitude"].data, ds.data * ds.coords["altitude"].data ** 2)
-indx = (ds.coords["altitude"].data > 6500) & (ds.coords["altitude"].data < 14000)
-plt.plot(ds.coords["altitude"].data[indx],
-         (ds.data * ds.coords["altitude"].data ** 2)[indx],
-         "*",
-         color="red",
-         label="reference region")
-plt.legend()
-plt.ylabel("RCS")
-plt.xlabel("altitude (m)")
-plt.grid()
-plt.show()
-
-plt.figure(figsize=(12, 7))
-plt.plot(ds.coords["altitude"].data, ds.data * ds.coords["altitude"].data ** 2)
-indx1 = (ds.coords["altitude"].data < 5800) & (ds.coords["altitude"].data > 5050)
-indx2 = (ds.coords["altitude"].data > 6150) & (ds.coords["altitude"].data < 6900)
-plt.plot(ds.coords["altitude"].data[indx1 | indx2],
-         (ds.data * ds.coords["altitude"].data ** 2)[indx1 | indx2],
-         "*",
-         color="red",
-         label="transmittance mean region")
-plt.legend()
-plt.ylabel("RCS")
-plt.xlabel("altitude (m)")
-plt.grid()
-plt.show()
+# plt.figure(figsize=(12, 7))
+# plt.plot(ds.coords["altitude"].data, ds.data * ds.coords["altitude"].data ** 2)
+# indx = (ds.coords["altitude"].data > 6500) & (ds.coords["altitude"].data < 14000)
+# plt.plot(ds.coords["altitude"].data[indx],
+#          (ds.data * ds.coords["altitude"].data ** 2)[indx],
+#          "*",
+#          color="red",
+#          label="reference region")
+# plt.legend()
+# plt.ylabel("RCS")
+# plt.xlabel("altitude (m)")
+# plt.grid()
+# plt.show()
+#
+# plt.figure(figsize=(12, 7))
+# plt.plot(ds.coords["altitude"].data, ds.data * ds.coords["altitude"].data ** 2)
+# indx1 = (ds.coords["altitude"].data < 5800) & (ds.coords["altitude"].data > 5050)
+# indx2 = (ds.coords["altitude"].data > 6150) & (ds.coords["altitude"].data < 6900)
+# plt.plot(ds.coords["altitude"].data[indx1 | indx2],
+#          (ds.data * ds.coords["altitude"].data ** 2)[indx1 | indx2],
+#          "*",
+#          color="red",
+#          label="transmittance mean region")
+# plt.legend()
+# plt.ylabel("RCS")
+# plt.xlabel("altitude (m)")
+# plt.grid()
+# plt.show()
 
 indx_tau = (ds.coords["altitude"].data > 5700) & (ds.coords["altitude"].data < 6300)
 
