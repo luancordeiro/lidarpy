@@ -7,31 +7,37 @@ import pandas as pd
 import xarray as xr
 from lidarpy.clouds.cloud_detection import CloudFinder
 
-df = pd.read_csv("data/cloud_detection_tester.txt")
+# df = pd.read_csv("data/cloud_detection_tester.txt")
+# lidar_data = xr.DataArray(df["2"], dims=["altitude"], coords=[df["1"]])
+# sigma = df["3"].to_numpy()
 
-lidar_data = xr.DataArray(df["2"], dims=["altitude"], coords=[df["1"]])
+directory = "data/binary"
+files = [file for file in os.listdir(directory) if file.startswith("RM")]
+data = GetData(directory, files)
+lidar_data = (data
+              .get_xarray()
+              .pipe(remove_background, [25_000, 80_000]))
+alt = np.arange(7.5, 30_000, 7.5)
+sigma = lidar_data.sel(wavelength="355_1", altitude=alt).std("time", ddof=1)
+lidar_data = lidar_data.sel(wavelength="355_1", altitude=alt).mean("time")
 
-sigma = df["3"].to_numpy()
 jdz = 735036.004918982
 
-lidar_data = lidar_data.pipe(remove_background, [25_000, 80_000])
-
-# plt.plot(lidar_data.coords["altitude"], lidar_data * lidar_data.coords["altitude"] ** 2, "--")
-# plt.ylabel("RCS")
-# plt.xlabel("Altitude (m)")
-# plt.grid()
-# plt.show()
-# #
-# plt.plot(lidar_data.coords["altitude"], sigma * lidar_data.coords["altitude"] ** 2, "--")
-# plt.ylabel("sigma")
-# plt.xlabel("Altitude (m)")
-# plt.grid()
-# plt.show()
+plt.plot(lidar_data.coords["altitude"], lidar_data * lidar_data.coords["altitude"] ** 2, "--")
+plt.ylabel("RCS")
+plt.xlabel("Altitude (m)")
+plt.grid()
+plt.show()
+#
+plt.plot(lidar_data.coords["altitude"], sigma * lidar_data.coords["altitude"] ** 2, "--")
+plt.ylabel("sigma")
+plt.xlabel("Altitude (m)")
+plt.grid()
+plt.show()
 
 cloud = CloudFinder(lidar_data, sigma, 355, 378, 5, jdz)
 z_base, z_top, z_max_capa, nfz_base, nfz_top, nfz_max_capa = cloud.fit()
 
-print(z_base)
 rcs = (lidar_data * lidar_data.coords["altitude"] ** 2)
 indx_base = lidar_data.coords["altitude"].sel(altitude=z_base, method="nearest").data
 indx_base = lidar_data.coords["altitude"].isin(indx_base)
@@ -47,7 +53,6 @@ plt.plot([lidar_data.coords["altitude"][indx_top]] * 2,
          [min(rcs), max(rcs)],
          "y--",
          label="top")
-
 
 plt.ylabel("RCS")
 plt.xlabel("Altitude (m)")
