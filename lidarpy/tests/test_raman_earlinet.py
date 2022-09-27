@@ -3,7 +3,7 @@ import xarray as xr
 import pandas as pd
 from lidarpy.inversion.raman import Raman
 from lidarpy.plot.plotter import compare_w_sol
-from lidarpy.data.manipulation import groupby_nbins
+from lidarpy.data.manipulation import groupby_nbins, signal_smoother
 import matplotlib.pyplot as plt
 
 df_elastic_signals = pd.read_csv("data/raman/elastic_signal.txt")
@@ -12,15 +12,19 @@ df_temp_pressure = pd.read_csv("data/raman/temp_pressure.txt")
 df_sol = pd.read_csv("data/raman/sol.txt")
 df_sol = df_sol.assign(Backscatter=lambda x: x["Extinction"] / x["Lidarratio"])
 
-ds = xr.DataArray([df_elastic_signals["MeanSignal"], df_raman_signals["MeanSignal"]],
+window = 21
+
+signals = [signal_smoother(df_elastic_signals["MeanSignal"], df_elastic_signals["Altitude"].to_numpy(), window),
+           signal_smoother(df_raman_signals["MeanSignal"], df_elastic_signals["Altitude"].to_numpy(), window)]
+
+ds = xr.DataArray(signals,
                   coords=(["355_1", "387_1"], df_elastic_signals["Altitude"].to_numpy()),
                   dims=["wavelength", "altitude"])
 
 plt.plot(ds.coords["altitude"].data,
          ds.sel(wavelength="355_1").data * ds.coords["altitude"].data ** 2)
 
-nbins = 5
-
+nbins = 1
 ds = ds.pipe(groupby_nbins, nbins)
 df_temp_pressure = df_temp_pressure.groupby(df_temp_pressure.index // nbins).mean()
 
@@ -38,7 +42,7 @@ alpha, beta, lr = Raman(ds.isel(altitude=indx),
                         1.8,
                         df_temp_pressure["Pressure"].to_numpy()[indx],
                         df_temp_pressure["Temperature"].to_numpy()[indx],
-                        12_000).fit(diff_window=3)
+                        12_000).fit(diff_window=15)
 
 indx_sol = (df_sol["Altitude"] > 300) & (df_sol["Altitude"] < 9000)
 
