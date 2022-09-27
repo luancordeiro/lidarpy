@@ -4,6 +4,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 from scipy.integrate import cumtrapz
 from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
+import matplotlib.pyplot as plt
 
 
 def remove_background(ds, alt_ref: list):
@@ -76,3 +77,40 @@ def molecular_model(lidar_data, wavelength, p_air, t_air, z_ref, co2ppmv=392, pc
                      1)
 
     return reg[0] * model + reg[1]
+
+
+def smooth(vec, window):
+    if window % 2 == 0:
+        raise Exception("Window value must be odd")
+    out0 = np.convolve(vec, np.ones(window, dtype=int), 'valid') / window
+    r = np.arange(1, window - 1, 2)
+    start = np.cumsum(vec[:window - 1])[::2] / r
+    stop = (np.cumsum(vec[:-window:-1])[::2] / r)[::-1]
+    return np.concatenate((start, out0, stop))
+
+
+def smooth_diego_fast(y, p_before, p_after):
+    sm = p_before + p_after + 1
+    y_sm = smooth(y, sm)
+    y_sm4 = np.zeros(y_sm.shape)
+    y_sm4[:-sm//2 + 1] = y_sm[sm // 2:]
+    return y_sm4
+
+
+def signal_smoother(vec, z, window):
+    vec_smooth = smooth(vec, window)
+    vec_aux = vec_smooth[::window]
+    z_aux = z[::window]
+    if z_aux[-1] < z[-1]:
+        ind = np.where(z == z_aux[-1])[0][0]
+        vec_aux = np.append(vec_aux, vec[ind:])
+        z_aux = np.append(z_aux, z[ind:])
+    func = interp1d(z_aux, vec_aux)
+
+    plt.plot(z, vec * z ** 2, label="original")
+    plt.plot(z, func(z) * z ** 2, label="smooth")
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+    return func(z)
