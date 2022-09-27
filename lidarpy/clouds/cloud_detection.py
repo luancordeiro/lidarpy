@@ -3,6 +3,7 @@ import numpy as np
 import xarray as xr
 from scipy.interpolate import interp1d
 import datetime
+from lidarpy.data.manipulation import smooth, smooth_diego_fast
 
 
 def _datevec(ordinal):
@@ -29,36 +30,21 @@ class CloudFinder:
     def _find_alt(self, alt: float) -> int:
         return np.where(abs(self.z - alt) == min(abs(self.z - alt)))[0][0]
 
-    def _smooth(self, vec, window=None):
-        # a: NumPy 1-D array containing the data to be smoothed
-        # WSZ: smoothing window size needs, which must be odd number,
-        # as in the original MATLAB implementation
-        window = self.window if window is None else window
-        out0 = np.convolve(vec, np.ones(window, dtype=int), 'valid') / window
-        r = np.arange(1, window - 1, 2)
-        start = np.cumsum(vec[:window - 1])[::2] / r
-        stop = (np.cumsum(vec[:-window:-1])[::2] / r)[::-1]
-        return np.concatenate((start, out0, stop))
-
     def _rcs_with_smooth(self):
-        signal_w_smooth = self._smooth(self._original_data.data)
+        signal_w_smooth = smooth(self._original_data.data, self.window)
         z_aux = self._original_data.coords["altitude"].data[::self.window]
         rcs_aux = signal_w_smooth[::self.window] * z_aux ** 2
         f_rcs = interp1d(z_aux, rcs_aux)
-        print(len(z_aux))
-        print(len(self.z))
-        print(z_aux[-1])
-        print(self.z[-1])
         rcs_smooth = f_rcs(self.z)
-        rcs_smooth[self.z > 5000] = self._smooth(rcs_smooth[self.z > 5000], 3)
+        rcs_smooth[self.z > 5000] = smooth(rcs_smooth[self.z > 5000], 3)
 
-        rcs_smooth_2 = self._smooth(rcs_smooth, 71)
+        rcs_smooth_2 = smooth(rcs_smooth, 71)
         rcs_smooth_3 = rcs_smooth_2.copy()
 
         return rcs_smooth, rcs_smooth_2, rcs_smooth_3
 
     def _sigma_rcs(self):
-        sigma_rcs_smooth = np.sqrt(self._smooth((self.sigma / self.window) ** 2) * self.window) * self.z ** 2
+        sigma_rcs_smooth = np.sqrt(smooth((self.sigma / self.window) ** 2, self.window) * self.window) * self.z ** 2
         for alt, coef in zip([7000, 5000, 3000], [1, 3, 1]):
             ref = self._find_alt(alt)
             sigma_rcs_smooth[:ref + 1] = coef * sigma_rcs_smooth[ref + 1] + sigma_rcs_smooth[:ref + 1]
@@ -71,7 +57,6 @@ class CloudFinder:
 
         asfend = 25
         init = 1
-        # plt.figure()
         for asf in range(asfend + 1):
             rcs_smooth_aux = rcs_smooth.copy()
             npp = 501
@@ -84,7 +69,7 @@ class CloudFinder:
 
             rcs_smooth_aux[mask_aux] = rcs_smooth_sm_2[mask_aux]
 
-            rcs_smooth_sm_2 = self._smooth(rcs_smooth_aux, npp) if asf != asfend else self._smooth(rcs_smooth_aux, 71)
+            rcs_smooth_sm_2 = smooth(rcs_smooth_aux, npp) if asf != asfend else smooth(rcs_smooth_aux, 71)
 
             m_aux = rcs_smooth_sm_2 > rcs_smooth_sm_3 + 0.5 * sigma_rcs_smooth_2
             rcs_smooth_sm_2[m_aux] = rcs_smooth_sm_3[m_aux]
@@ -97,7 +82,6 @@ class CloudFinder:
                 r_ts = self.z < 10_000
                 rcs_smooth_exc[r_ts] = p_test[r_ts]
                 rcs_smooth_sm_2[r_ts] = p_test[r_ts]
-        plt.show()
 
         return rcs_smooth_exc
 
@@ -113,8 +97,8 @@ class CloudFinder:
         pa2, pd2 = 1, self.window
         rn = pa2 + pd2 + 1
 
-        tz_cond2 = (self._smooth_diego_fast(rcs - rcs_smooth_exc, pa2, pd2)
-                    / ((self._smooth_diego_fast((sigma_rcs / rn) ** 2, pa2, pd2) * rn) ** .5))
+        tz_cond2 = (smooth_diego_fast(rcs - rcs_smooth_exc, pa2, pd2)
+                    / ((smooth_diego_fast((sigma_rcs / rn) ** 2, pa2, pd2) * rn) ** .5))
 
         r = (self.z < 5000) | (self.z > 22_000)
         tz_cond2[r] = 0
@@ -153,13 +137,6 @@ class CloudFinder:
 
         return ind_base, ind_top
 
-    def _smooth_diego_fast(self, y, p_before, p_after):
-        sm = p_before + p_after + 1
-        y_sm = self._smooth(y, sm)
-        y_sm4 = np.zeros(y_sm.shape)
-        y_sm4[:-sm//2 + 1] = y_sm[sm // 2:]
-        return y_sm4
-
     def _comp(self, rcs_smooth_exc, ind_base, ind_top):
         if (ind_base == []) | (ind_top == []):
             return [np.nan] * 6
@@ -175,13 +152,6 @@ class CloudFinder:
         nfz_top = rcs_smooth_exc[ind_top]
         z_max_capa = np.nan
         nfz_max_capa = np.nan
-
-        # for ib, it in zip(ind_base, ind_top):
-        #     max_ = max(self.signal[ib:it])
-        #     ind = np.where(self.signal == max_)[0][0]
-        #     z_max_capa = self.z[ind]
-        #     print("arrumar o nfz_max_capa")
-        #     nfz_max_capa = np.nan
 
         return z_base, z_top, z_max_capa, nfz_base, nfz_top, nfz_max_capa
 
