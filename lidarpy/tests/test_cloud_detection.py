@@ -7,19 +7,19 @@ import pandas as pd
 import xarray as xr
 from lidarpy.clouds.cloud_detection import CloudFinder
 
-# df = pd.read_csv("data/cloud_detection_tester.txt")
-# lidar_data = xr.DataArray(df["2"], dims=["altitude"], coords=[df["1"]])
-# sigma = df["3"].to_numpy()
+df = pd.read_csv("data/cloud_detection_tester.txt")
+lidar_data = xr.DataArray(df["2"], dims=["altitude"], coords=[df["1"]])
+sigma = df["3"].to_numpy()
 
-directory = "data/binary"
-files = [file for file in os.listdir(directory) if file.startswith("RM")]
-data = GetData(directory, files)
-lidar_data = (data
-              .get_xarray()
-              .pipe(remove_background, [25_000, 80_000]))
-alt = np.arange(7.5, 30_000, 7.5)
-sigma = lidar_data.sel(wavelength="355_1", altitude=alt).std("time", ddof=1)
-lidar_data = lidar_data.sel(wavelength="355_1", altitude=alt).mean("time")
+# directory = "data/binary"
+# files = [file for file in os.listdir(directory) if file.startswith("RM")]
+# data = GetData(directory, files)
+# lidar_data = (data
+#               .get_xarray()
+#               .pipe(remove_background, [25_000, 80_000]))
+# alt = np.arange(7.5, 30_000, 7.5)
+# sigma = lidar_data.sel(wavelength="355_1", altitude=alt).std("time", ddof=1)
+# lidar_data = lidar_data.sel(wavelength="355_1", altitude=alt).mean("time")
 
 jdz = 735036.004918982
 
