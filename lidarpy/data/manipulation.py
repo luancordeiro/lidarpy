@@ -5,6 +5,7 @@ from scipy.interpolate import interp1d
 from scipy.integrate import cumtrapz
 from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
 import matplotlib.pyplot as plt
+import xarray as xr
 
 
 def remove_background(ds, alt_ref: list):
@@ -56,20 +57,19 @@ def atmospheric_interpolation(z, df_sonde):
     return temperature, pressure
 
 
-def molecular_model(lidar_data, wavelength, p_air, t_air, z_ref, co2ppmv=392, pc=True):
+def molecular_model(lidar_data, wavelength, p_air, t_air, alt_ref, co2ppmv=392, pc=True):
     if "wavelength" in lidar_data.dims:
         signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
     else:
         signal = lidar_data.data
 
-    z = lidar_data.coords["altitude"].data
-
     alpha_beta_mol = AlphaBetaMolecular(p_air, t_air, wavelength, co2ppmv)
     alpha_mol, beta_mol, _ = alpha_beta_mol.get_params()
 
+    z = lidar_data.coords["altitude"].data
     model = beta_mol * np.exp(-2 * cumtrapz(z, alpha_mol, initial=0)) / z ** 2
 
-    ref = lidar_data.coords["altitude"].sel(altitude=z_ref, method="nearest").data
+    ref = lidar_data.coords["altitude"].sel(altitude=alt_ref, method="nearest").data
     ref = np.where((z == ref[0]) | (z == ref[1]))[0]
 
     reg = np.polyfit(model[ref[0]:ref[1]],
@@ -77,6 +77,33 @@ def molecular_model(lidar_data, wavelength, p_air, t_air, z_ref, co2ppmv=392, pc
                      1)
 
     return reg[0] * model + reg[1]
+
+
+def remove_background_fit(lidar_data, wavelength, p_air, t_air, alt_ref, co2ppmv, pc=True) -> xr.DataArray:
+    data = lidar_data.copy()
+    if "wavelength" in lidar_data.dims:
+        signal = data.sel(wavelength=f"{wavelength}_{int(pc)}").data
+    else:
+        signal = data.data
+
+    alpha_beta_mol = AlphaBetaMolecular(p_air, t_air, wavelength, co2ppmv)
+    alpha_mol, beta_mol, _ = alpha_beta_mol.get_params()
+
+    z = lidar_data.coords["altitude"].data
+    model = beta_mol * np.exp(-2 * cumtrapz(z, alpha_mol, initial=0)) / z ** 2
+
+    ref = data.coords["altitude"].sel(altitude=alt_ref, method="nearest").data
+    ref = np.where((z == ref[0]) | (z == ref[1]))[0]
+
+    reg = np.polyfit(model[ref[0]:ref[1]],
+                     signal[ref[0]:ref[1]],
+                     1)
+
+    signal -= reg[1]
+
+    data.data = signal
+
+    return data
 
 
 def smooth(vec, window):
