@@ -79,7 +79,7 @@ def molecular_model(lidar_data, wavelength, p_air, t_air, alt_ref, co2ppmv=392, 
     return reg[0] * model + reg[1]
 
 
-def remove_background_fit(lidar_data, wavelength, p_air, t_air, alt_ref, co2ppmv, pc=True) -> xr.DataArray:
+def remove_background_fit(lidar_data, wavelength, p_air, t_air, alt_ref, co2ppmv=392, pc=True) -> xr.DataArray:
     data = lidar_data.copy()
     if "wavelength" in lidar_data.dims:
         signal = data.sel(wavelength=f"{wavelength}_{int(pc)}").data

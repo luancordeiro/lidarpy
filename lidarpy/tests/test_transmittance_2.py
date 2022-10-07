@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import cumtrapz
 from lidarpy.inversion.transmittance2 import Transmittance
-from lidarpy.data.manipulation import remove_background
+from lidarpy.data.manipulation import remove_background, remove_background_fit
 from lidarpy.inversion.klett import Klett
 from lidarpy.plot.plotter import plot_3graph_std, compare_w_sol
 
@@ -33,7 +33,19 @@ print()
 print(df_sonde.head())
 print()
 
+plt.plot(ds.data * ds.coords["altitude"] ** 2, label="antes")
+
 ds = ds.pipe(remove_background, [10_000, 14_000])
+
+ds = ds.pipe(remove_background_fit,
+             355,
+             df_sonde.pressure.to_numpy(),
+             df_sonde.temperature.to_numpy(),
+             [10_000, 14_000])
+
+plt.plot(ds.data * ds.coords["altitude"] ** 2, label="depois")
+plt.legend()
+plt.show()
 
 tau = Transmittance(ds,
                     [5800, 6150],
