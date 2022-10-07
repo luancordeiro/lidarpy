@@ -8,7 +8,7 @@ from lidarpy.data.manipulation import remove_background
 from lidarpy.inversion.klett import Klett
 from lidarpy.plot.plotter import plot_3graph_std, compare_w_sol
 
-weak_cloud = 1
+weak_cloud = 0
 
 link = ["http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500.txt",
         "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500_v2.txt"]

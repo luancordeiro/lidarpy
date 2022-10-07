@@ -50,7 +50,9 @@ class Transmittance:
         plt.plot(self.z[transmittance_ref: transmittance_ref + 150], rcs[transmittance_ref: transmittance_ref + 150],
                  "y*", label="transmittance")
         plt.grid()
+
         plt.legend()
+
         plt.show()
 
         transmittance_z = self.z[transmittance_ref: transmittance_ref + 150]
