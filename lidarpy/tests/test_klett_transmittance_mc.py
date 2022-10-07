@@ -4,9 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 from lidarpy.inversion.klett import Klett
 from lidarpy.plot.plotter import plot_3graph_std
+from lidarpy.data.manipulation import remove_background, remove_background_fit
 
-# link = "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500.txt"
-link = "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500_v2.txt"
+link = "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500.txt"
+# link = "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500_v2.txt"
 
 my_data = np.genfromtxt(link)
 
@@ -24,6 +25,15 @@ df_sonde = (df_sonde
 print()
 print(df_sonde.head())
 print()
+
+ds = (ds
+      .pipe(remove_background, [8000, 14000])
+      .pipe(remove_background_fit,
+            355,
+            df_sonde["pressure"].to_numpy(),
+            df_sonde["temperature"].to_numpy(),
+            [8000, 14000]))
+
 
 plt.figure(figsize=(12, 7))
 plt.plot(ds.coords["altitude"].data, ds.data * ds.coords["altitude"].data ** 2)

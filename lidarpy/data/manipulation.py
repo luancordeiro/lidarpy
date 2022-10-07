@@ -72,11 +72,11 @@ def molecular_model(lidar_data, wavelength, p_air, t_air, alt_ref, co2ppmv=392, 
     ref = lidar_data.coords["altitude"].sel(altitude=alt_ref, method="nearest").data
     ref = np.where((z == ref[0]) | (z == ref[1]))[0]
 
-    reg = np.polyfit(model[ref[0]:ref[1]],
-                     signal[ref[0]:ref[1]],
+    reg = np.polyfit(np.log(model[ref[0]:ref[1]]),
+                     np.log(signal[ref[0]:ref[1]]),
                      1)
 
-    return reg[0] * model + reg[1]
+    return np.exp(reg[0] * np.log(model) + reg[1])
 
 
 def remove_background_fit(lidar_data, wavelength, p_air, t_air, alt_ref, co2ppmv=392, pc=True) -> xr.DataArray:

@@ -4,7 +4,7 @@ from scipy.integrate import cumtrapz, trapz
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
-from lidarpy.inversion.transmittance import Transmittance
+from lidarpy.inversion.transmittance2 import Transmittance
 import matplotlib.pyplot as plt
 
 
@@ -145,15 +145,17 @@ class Klett:
         return beta_ref, signal, ref[0]
 
     def _transmittance_lr(self, da, tau_ind, z_lims, wavelength, p_air, t_air, pc, co2ppmv) -> float:
-        tau_transmittance = Transmittance(da,
-                                          z_lims,
-                                          wavelength,
-                                          p_air,
-                                          t_air,
-                                          pc,
-                                          co2ppmv).fit()
+        # tau_transmittance = Transmittance(da,
+        #                                   z_lims,
+        #                                   wavelength,
+        #                                   p_air,
+        #                                   t_air,
+        #                                   pc,
+        #                                   co2ppmv).fit()
 
-        print(f"tau transmittance = {tau_transmittance.round(2)}")
+        tau_transmittance = 1.0
+
+        # print(f"tau transmittance = {tau_transmittance.round(2)}")
 
         taus = []
         lidar_ratios = np.arange(5, 75, 5)
