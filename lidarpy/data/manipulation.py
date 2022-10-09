@@ -181,7 +181,11 @@ def dead_time_correction(lidar_data, dead_time):
     ])
 
     print(lidar_data.sel(wavelength="355_1").data[:10])
-    lidar_data.data = lidar_data.data / (1 - dead_times @ lidar_data.data)
+    new_signals = []
+    for i, dead_time in enumerate(dead_times):
+        old_signal = lidar_data.isel(wavelength=i).data
+        new_signals.append(old_signal / (1 - dead_time * old_signal))
+    lidar_data.data = new_signals
     print(lidar_data.sel(wavelength="355_1").data[:10])
 
     return lidar_data
