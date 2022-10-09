@@ -106,38 +106,82 @@ def remove_background_fit(lidar_data, wavelength, p_air, t_air, alt_ref, co2ppmv
     return data
 
 
-def smooth(vec, window):
+def smooth(signal, window):
     if window % 2 == 0:
         raise Exception("Window value must be odd")
-    out0 = np.convolve(vec, np.ones(window, dtype=int), 'valid') / window
+    out0 = np.convolve(signal, np.ones(window, dtype=int), 'valid') / window
     r = np.arange(1, window - 1, 2)
-    start = np.cumsum(vec[:window - 1])[::2] / r
-    stop = (np.cumsum(vec[:-window:-1])[::2] / r)[::-1]
+    start = np.cumsum(signal[:window - 1])[::2] / r
+    stop = (np.cumsum(signal[:-window:-1])[::2] / r)[::-1]
     return np.concatenate((start, out0, stop))
 
 
-def smooth_diego_fast(y, p_before, p_after):
+def smooth_diego_fast(signal, p_before, p_after):
     sm = p_before + p_after + 1
-    y_sm = smooth(y, sm)
+    y_sm = smooth(signal, sm)
     y_sm4 = np.zeros(y_sm.shape)
     y_sm4[:-sm//2 + 1] = y_sm[sm // 2:]
     return y_sm4
 
 
-def signal_smoother(vec, z, window):
-    vec_smooth = smooth(vec, window)
+def signal_smoother(signal, altitude, window):
+    vec_smooth = smooth(signal, window)
     vec_aux = vec_smooth[::window]
-    z_aux = z[::window]
-    if z_aux[-1] < z[-1]:
-        ind = np.where(z == z_aux[-1])[0][0]
-        vec_aux = np.append(vec_aux, vec[ind:])
-        z_aux = np.append(z_aux, z[ind:])
+    z_aux = altitude[::window]
+    if z_aux[-1] < altitude[-1]:
+        ind = np.where(altitude == z_aux[-1])[0][0]
+        vec_aux = np.append(vec_aux, signal[ind:])
+        z_aux = np.append(z_aux, altitude[ind:])
     func = interp1d(z_aux, vec_aux)
 
-    plt.plot(z, vec * z ** 2, label="original")
-    plt.plot(z, func(z) * z ** 2, label="smooth")
+    plt.plot(altitude, signal * altitude ** 2, label="original")
+    plt.plot(altitude, func(altitude) * altitude ** 2, label="smooth")
     plt.legend()
     plt.grid()
     plt.show()
 
-    return func(z)
+    return func(altitude)
+
+
+def z_finder(altitude: np.array, alts):
+    def finder(z):
+        return round((z - altitude[0]) / (altitude[1] - altitude[0]))
+
+    if type(alts) == int:
+        return finder(alts)
+
+    indx = []
+    for alt in alts:
+        indx.append(finder(alt))
+
+    return indx
+
+
+def get_uncertainty(lidar_data, wavelength, bg_ref: list, nshoots: int, pc: bool = True):
+    if "wavelength" in lidar_data.dims:
+        signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
+    else:
+        signal = lidar_data.data
+
+    t = nshoots / 20e6
+    n = t * signal * 1e-6
+    index = z_finder(lidar_data.coords["altitude"].data, bg_ref)
+    bg = signal[index[0]:index[1]].mean()
+    n_bg = t * bg * 1e6
+    sigma_n = (n + n_bg) ** 0.5
+
+    plt.plot(lidar_data.coords["altitude"].data, sigma_n * 1e-6 / t)
+    plt.show()
+    return sigma_n * 1e-6 / t
+
+
+def dead_time_correction(lidar_data, dead_time):
+    dead_times = np.array([
+        dead_time * wavelength.endswith("1") for wavelength in lidar_data.coords["wavelength"].data
+    ])
+
+    print(lidar_data.sel(wavelength="355_1").data[:10])
+    lidar_data.data = lidar_data.data / (1 - dead_times @ lidar_data.data)
+    print(lidar_data.sel(wavelength="355_1").data[:10])
+
+    return lidar_data
