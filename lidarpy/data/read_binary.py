@@ -4,10 +4,21 @@ from datetime import datetime
 import xarray as xr
 
 
+def _compare_dictionaries(d1, d2):
+    bool_ = True
+    for (key1, value1), (key2, value2) in zip(d1.items(), d2.items()):
+        if type(value1) == np.ndarray:
+            bool_ *= (key1 == key2) & (value1 == value2).all()
+        else:
+            bool_ *= (key1 == key2) & (value1 == value2)
+    return bool_
+
+
 class GetData:
     def __init__(self, directory: str, files_name: list) -> None:
         self.directory = directory
-        self.files_name = files_name
+        self.files_name = files_name.copy()
+        self.files_name.sort()
 
     @staticmethod
     def profile_read(f_name: str) -> tuple:
@@ -125,8 +136,6 @@ class GetData:
                 nz = head['ch']['ndata'][ch]
                 _ = np.fromfile(fp, np.byte, 2)
                 tmpraw = np.fromfile(fp, np.int32, nz)
-                # print(tmpraw)
-                # print(len(tmpraw))
 
                 if head['ch']['photons'][ch] == 0:
                     d_scale = head['ch']['nshoots'][ch] * (2 ** head['ch']['bits'][ch]) / (head['ch']['discr'][ch]
@@ -146,19 +155,62 @@ class GetData:
         """Esse método tá assumindo que todas as observações foram tomadas no mesmo local e nas mesmas condições
         a única diferença é o tempo de início da medida"""
         times = []
+        datei = []
+        houri = []
+        datef = []
+        hourf = []
+        jdi = []
+        jdf = []
+        pressures_0 = []
+        temperatures_0 = []
         phys = []
+        raws = []
         for file in self.files_name:
-            head, phy, _ = self.profile_read(f"{self.directory}/{file}")
-            times.append(head["jdi"])
+            head, phy, raw = self.profile_read(f"{self.directory}/{file}")
+
+            if file == self.files_name[0]:
+                first_head = head.copy()
+                first_ch = first_head["ch"].copy()
+                for key in ["file", "datei", "houri", "datef", "hourf", "jdi", "jdf", "T0", "P0", "ch"]:
+                    first_head.pop(key)
+            else:
+                new_head = head.copy()
+                new_ch = new_head["ch"]
+                for key in ["file", "datei", "houri", "datef", "hourf", "jdi", "jdf", "T0", "P0", "ch"]:
+                    new_head.pop(key)
+                bool1 = _compare_dictionaries(first_head, new_head)
+                bool2 = _compare_dictionaries(first_ch, new_ch)
+                if not (bool1 & bool2):
+                    raise Exception("All headers in the directory must be the same.")
+
+            times.append((head["jdi"] + head["jdf"]) / 2)
+            datei.append(head["datei"])
+            houri.append(head["houri"])
+            datef.append(head["datef"])
+            hourf.append(head["hourf"])
+            jdi.append(head["jdi"])
+            jdf.append(head["jdf"])
+            pressures_0.append(head["P0"])
+            temperatures_0.append(head["T0"])
             phys.append(phy)
+            raws.append(raw)
 
         wavelengths = [f"{wavelength}_{photon}"
                        for wavelength, photon
                        in zip(head["ch"]["wlen"], head["ch"]["photons"])]
-        phys = np.array(phys)
+
         alt = np.arange(1, len(phys[0][0]) + 1) * 7.5
-        da = xr.DataArray(phys, coords=[times, wavelengths, alt], dims=["time", "wavelength", "altitude"])
-        return da
+        da_phy = xr.DataArray(phys, coords=[times, wavelengths, alt], dims=["time", "wavelength", "altitude"])
+        da_raw = xr.DataArray(raws, coords=[times, wavelengths, alt], dims=["time", "wavelength", "altitude"])
+        das = {"phy": da_phy, "raw": da_raw}
+        vars_ = [datei, houri, datef, hourf, jdi, jdf, pressures_0, temperatures_0]
+        names = ["datei", "houri", "datef", "hourf", "jdi", "jdf", "pressure0", "temperature0"]
+        for name, var in zip(names, vars_):
+            das[name] = xr.DataArray(var, coords=[times], dims="time")
+        ds = xr.Dataset(das)
+        first_head["ch"] = first_ch
+        ds.attrs = first_head
+        return ds
 
     def to_netcdf(self, directory: str = None, save_name: str = None) -> None:
         directory = f"{directory}/" if not directory.endswith("/") else directory
