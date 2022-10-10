@@ -125,6 +125,8 @@ class GetData:
                 nz = head['ch']['ndata'][ch]
                 _ = np.fromfile(fp, np.byte, 2)
                 tmpraw = np.fromfile(fp, np.int32, nz)
+                # print(tmpraw)
+                # print(len(tmpraw))
 
                 if head['ch']['photons'][ch] == 0:
                     d_scale = head['ch']['nshoots'][ch] * (2 ** head['ch']['bits'][ch]) / (head['ch']['discr'][ch]
