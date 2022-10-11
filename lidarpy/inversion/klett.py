@@ -4,7 +4,7 @@ from scipy.integrate import cumtrapz, trapz
 from scipy.optimize import curve_fit
 from scipy.interpolate import interp1d
 from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
-from lidarpy.inversion.transmittance2 import Transmittance
+from lidarpy.data.manipulation import z_finder
 import matplotlib.pyplot as plt
 
 
@@ -76,8 +76,8 @@ class Klett:
     _mc_bool = True
 
     def __init__(self, lidar_data: xr.DataArray, wavelength: int, p_air: np.ndarray, t_air: np.ndarray, z_ref: list,
-                 lidar_ratio: float = None, pc: bool = True, co2ppmv: int = 392, correct_noise: bool = True,
-                 mc_iter: int = None, tau_ind: np.array = None, z_lims: list = None):
+                 lidar_ratio: float, pc: bool = True, co2ppmv: int = 392, correct_noise: bool = True,
+                 mc_iter: int = None, tau_ind: np.array = None):
         if wavelength in lidar_data.dims:
             self.signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
         else:
@@ -86,19 +86,11 @@ class Klett:
         if (mc_iter is not None) & (tau_ind is None):
             raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
 
-        if (lidar_ratio is None) & ((z_lims is None) | (tau_ind is None)):
-            raise Exception("Para realizar o calculo da razão lidar utilizando o método da transmitância é preciso "
-                            "definir o z_lims e tau_ind")
-
         self.z = lidar_data.coords["altitude"].data
-        self.tau_ind = tau_ind
-        self.ref = lidar_data.coords["altitude"].sel(altitude=z_ref, method="nearest").data
+        self.ref = z_ref
         self._calib_strategy = self._calib_strategies[correct_noise]
-
         self._get_alpha_beta_molecular(p_air, t_air, wavelength * 1e-9, co2ppmv)
-
-        self._lr['aer'] = (self._transmittance_lr(lidar_data, tau_ind, z_lims, wavelength, p_air, t_air, pc, co2ppmv)
-                           if lidar_ratio is None else lidar_ratio)
+        self._lr['aer'] = lidar_ratio
         self.mc_iter = mc_iter
 
     def __str__(self):
@@ -131,7 +123,7 @@ class Klett:
         self._alpha['mol'], self._beta['mol'], self._lr['mol'] = alpha_beta_mol.get_params()
 
     def _calib(self, signal):
-        ref = np.where((self.z == self.ref[0]) | (self.z == self.ref[1]))[0]
+        ref = z_finder(self.z, self.ref)
 
         if len(ref) > 1:
             signal, model, self.fit_parameters = self._calib_strategy(signal=signal.copy(),
@@ -143,50 +135,6 @@ class Klett:
             beta_ref = self._beta['mol'][ref[0]]
 
         return beta_ref, signal, ref[0]
-
-    def _transmittance_lr(self, da, tau_ind, z_lims, wavelength, p_air, t_air, pc, co2ppmv) -> float:
-        # tau_transmittance = Transmittance(da,
-        #                                   z_lims,
-        #                                   wavelength,
-        #                                   p_air,
-        #                                   t_air,
-        #                                   pc,
-        #                                   co2ppmv).fit()
-
-        tau_transmittance = 1.0
-
-        # print(f"tau transmittance = {tau_transmittance.round(2)}")
-
-        taus = []
-        lidar_ratios = np.arange(5, 75, 5)
-        for lr in lidar_ratios:
-            self._lr['aer'] = lr
-
-            alpha, *_ = self.fit()
-
-            taus.append(trapz(alpha[tau_ind], self.z[tau_ind]))
-
-        print(f"taus = {np.round(taus, 2)}")
-
-        difference = (np.array(taus) - tau_transmittance) ** 2
-
-        print(f"diff = {np.round(difference, 2)}")
-
-        f_diff = interp1d(lidar_ratios, difference, kind="quadratic")
-
-        new_lr = np.linspace(5, 70, 100)
-
-        new_diff = f_diff(new_lr)
-
-        plt.plot(new_lr, new_diff, "o")
-        plt.plot(new_lr[new_diff.argmin()], min(new_diff), "*")
-        plt.title(f"lidar ratio = {new_lr[new_diff.argmin()].round(2)}")
-        plt.grid()
-        plt.xlabel("Lidar ratio")
-        plt.ylabel("Difference")
-        plt.show()
-
-        return new_lr[new_diff.argmin()]
 
     def fit(self):
         if (self.mc_iter is not None) & self._mc_bool:
