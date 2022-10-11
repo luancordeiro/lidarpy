@@ -12,7 +12,7 @@ df_temp_pressure = pd.read_csv("data/raman/temp_pressure.txt")
 df_sol = pd.read_csv("data/raman/sol.txt")
 df_sol = df_sol.assign(Backscatter=lambda x: x["Extinction"] / x["Lidarratio"])
 
-window = 21
+window = 5
 
 signals = [signal_smoother(df_elastic_signals["MeanSignal"], df_elastic_signals["Altitude"].to_numpy(), window),
            signal_smoother(df_raman_signals["MeanSignal"], df_elastic_signals["Altitude"].to_numpy(), window)]
