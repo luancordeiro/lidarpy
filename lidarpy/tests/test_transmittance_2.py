@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import cumtrapz
-from lidarpy.inversion.transmittance2 import Transmittance
+from lidarpy.inversion.transmittance2 import transmittance
 from lidarpy.data.manipulation import remove_background, remove_background_fit
 from lidarpy.inversion.klett import Klett
 from lidarpy.plot.plotter import plot_3graph_std, compare_w_sol
@@ -47,8 +47,10 @@ plt.plot(ds.data * ds.coords["altitude"] ** 2, label="depois")
 plt.legend()
 plt.show()
 
-tau = Transmittance(ds,
+tau = transmittance(ds,
                     [5800, 6150],
                     355,
                     df_sonde["pressure"].to_numpy(),
                     df_sonde["temperature"].to_numpy())
+
+print(tau)
