@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import cumtrapz
-from lidarpy.inversion.transmittance2 import transmittance
+from lidarpy.inversion.transmittance import get_cod
 from lidarpy.inversion.klett import Klett
 from lidarpy.plot.plotter import plot_3graph_std, compare_w_sol
 
@@ -46,11 +46,11 @@ plt.xlabel("altitude (m)")
 plt.grid()
 plt.show()
 
-tau = transmittance(ds,
-                    [5800, 6150],
-                    355,
-                    df_sonde["pressure"].to_numpy(),
-                    df_sonde["temperature"].to_numpy())
+tau = get_cod(ds,
+              [5800, 6150],
+              355,
+              df_sonde["pressure"].to_numpy(),
+              df_sonde["temperature"].to_numpy())
 
 print("----------------------------")
 print(f"AOD_transmittance = {tau.round(2)}")

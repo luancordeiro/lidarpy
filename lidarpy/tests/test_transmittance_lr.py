@@ -2,7 +2,7 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from lidarpy.inversion.transmittance2 import get_lidar_ratio
+from lidarpy.inversion.transmittance import get_lidar_ratio
 from lidarpy.data.manipulation import remove_background, remove_background_fit
 from lidarpy.inversion.klett import Klett
 
