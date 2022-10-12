@@ -1,151 +1,104 @@
 import xarray as xr
 import numpy as np
-from scipy.integrate import trapz
-from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
+from lidarpy.data.manipulation import molecular_model, z_finder, filter_wavelength
+from lidarpy.inversion.klett import Klett
 import matplotlib.pyplot as plt
+from scipy.integrate import trapz
+from scipy.interpolate import interp1d
 
 
-class Transmittance:
-    _alpha = None
-    _beta = None
-    tau = None
+def get_cod(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p_air: np.ndarray, t_air: np.ndarray,
+            pc=True, co2ppmv: int = 392, delta_z=200):
+    signal = filter_wavelength(lidar_data, wavelength, pc)
 
-    def __init__(self,
-                 lidar_data: xr.DataArray,
-                 z_lims: list,
-                 wavelength: int,
-                 p_air: np.ndarray,
-                 t_air: np.ndarray,
-                 pc=True,
-                 co2ppmv: int = 392,):
-        if "wavelength" in lidar_data.dims:
-            self.signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
-        else:
-            self.signal = lidar_data.data
+    z = lidar_data.coords["altitude"].data
 
-        self.z = lidar_data.coords["altitude"].data
+    fit_ref = [cloud_lims[0] - 2000, cloud_lims[0]]
 
-        z_lims += [z_lims[0] - 500, z_lims[1] + 500]
-        print(z_lims)
+    transmittance_ref = z_finder(lidar_data.coords["altitude"].data, cloud_lims[1] + delta_z)
 
-        z_ref = lidar_data.coords["altitude"].sel(altitude=z_lims, method="nearest").data
+    molecular_signal = molecular_model(lidar_data,
+                                       wavelength,
+                                       p_air,
+                                       t_air,
+                                       fit_ref,
+                                       co2ppmv)
 
-        self._ref_base = np.where((self.z == z_ref[0]) | (self.z == z_ref[2]))[0]
-        self._ref_top = np.where((self.z == z_ref[1]) | (self.z == z_ref[3]))[0]
+    molecular_rcs = molecular_signal * z ** 2
 
-        print(self._ref_base)
-        print(self._ref_top)
-        print(self.z[self._ref_base])
-        print(self.z[self._ref_top])
+    rcs = signal * z ** 2
 
-        self._get_molecular_alpha_beta(p_air, t_air, wavelength * 1e-9, co2ppmv)
+    transmittance_ = (rcs[transmittance_ref: transmittance_ref + 150]
+                      / molecular_rcs[transmittance_ref: transmittance_ref + 150])
 
-    def _range_corrected_signal(self):
-        return self.signal * self.z ** 2
+    mean = transmittance_.mean()
 
-    def _get_molecular_alpha_beta(self, p_air, t_air, wavelength, co2ppmv):
-        alpha_beta_mol = AlphaBetaMolecular(p_air, t_air, wavelength, co2ppmv)
-        self._alpha, self._beta, _ = alpha_beta_mol.get_params()
+    std = transmittance_.std(ddof=1)
 
-    def _ref_value(self, y, ref):
-        p = np.poly1d(np.polyfit(self.z[ref[0]: ref[1]], y[ref[0]: ref[1]], 1))
+    plt.figure(figsize=(12, 5))
+    plt.plot(z, rcs, "b-", label="Lidar profile")
+    plt.plot(z[fit_ref[0]:fit_ref[1]], rcs[fit_ref[0]:fit_ref[1]], "y--", label="Fit region")
+    # plt.plot(self.z[cloud_lims], rcs[cloud_lims], "b*", label="Cloud lims")
+    plt.plot(z, molecular_rcs, "k-", label="Mol. profile")
+    plt.plot(z[transmittance_ref: transmittance_ref + 150], rcs[transmittance_ref: transmittance_ref + 150],
+             "y*", label="transmittance")
+    plt.grid()
+    plt.yscale("log")
+    plt.legend()
+    plt.xlabel("altitude (m)")
+    plt.ylabel("S(z)")
+    plt.show()
 
-        plt.plot(self.z[ref[0]: ref[1]], y[ref[0]: ref[1]], ".")
-        plt.plot(self.z[ref[0]: ref[1]], p(self.z[ref[0]: ref[1]]), "-")
-        plt.plot(self.z[(ref[0] + ref[1]) // 2], p(self.z[(ref[0] + ref[1]) // 2]), "*")
-        plt.show()
+    plt.figure(figsize=(12, 5))
+    transmittance_z = z[transmittance_ref: transmittance_ref + 150]
+    plt.plot(transmittance_z, transmittance_)
+    plt.plot([transmittance_z[0], transmittance_z[-1]], [mean, mean], "k--")
+    plt.title(f"mean value = {mean.round(4)} +- {std.round(4)}")
+    plt.xlabel("altitude (m)")
+    plt.ylabel("Transmittance")
+    plt.show()
 
-        return p(self.z[(ref[0] + ref[1]) // 2])
+    return -0.5 * np.log(mean)
 
-    def fit0(self):
-        s = self._range_corrected_signal()
-        s0, s1 = self._ref_value(s, self._ref_base), self._ref_value(s, self._ref_top)
-        beta0, beta1 = self._ref_value(self._beta, self._ref_base), self._ref_value(self._beta, self._ref_top)
 
-        transmittance_factor = (s1 * beta0 / (s0 * beta1)
-                                * np.exp(2 * trapz(x=self.z[(self._ref_base[0] + self._ref_base[1]) // 2:
-                                                            (self._ref_top[0] + self._ref_top[1]) // 2],
-                                                   y=self._alpha[(self._ref_base[0] + self._ref_base[1]) // 2:
-                                                                 (self._ref_top[0] + self._ref_top[1]) // 2])))
+def get_lidar_ratio(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p_air: np.ndarray, t_air: np.ndarray,
+                    z_ref: list, pc: bool = True, co2ppmv: int = 392, correct_noise: bool = True):
+    tau_transmittance = get_cod(lidar_data,
+                                cloud_lims,
+                                wavelength,
+                                p_air,
+                                t_air,
+                                pc,
+                                co2ppmv)
 
-        self.tau = -0.5 * np.log(transmittance_factor)
+    lidar_ratios = np.arange(5, 75, 5)
 
-        return self.tau
+    cloud_ind = z_finder(lidar_data.coords["altitude"].data, cloud_lims)
 
-    def fit1(self):
-        p0, p1 = self._ref_value(self.signal, self._ref_base), self._ref_value(self.signal, self._ref_top)
-        s0 = p0 * self.z[(self._ref_base[0] + self._ref_base[1]) // 2] ** 2
-        s1 = p1 * self.z[(self._ref_top[0] + self._ref_top[1]) // 2] ** 2
-        beta0, beta1 = self._ref_value(self._beta, self._ref_base), self._ref_value(self._beta, self._ref_top)
+    klett = Klett(lidar_data, wavelength, p_air, t_air, z_ref, 1, pc, co2ppmv, correct_noise)
 
-        transmittance_factor = (s1 * beta0 / (s0 * beta1)
-                                * np.exp(2 * trapz(x=self.z[(self._ref_base[0] + self._ref_base[1]) // 2:
-                                                            (self._ref_top[0] + self._ref_top[1]) // 2],
-                                                   y=self._alpha[(self._ref_base[0] + self._ref_base[1]) // 2:
-                                                                 (self._ref_top[0] + self._ref_top[1]) // 2])))
+    taus = []
+    for lidar_ratio in lidar_ratios:
+        klett.set_lidar_ratio(lidar_ratio)
+        alpha, *_ = klett.fit()
+        taus.append(trapz(alpha[cloud_ind[0]:cloud_ind[1] + 1],
+                          lidar_data.coords["altitude"].data[cloud_ind[0]:cloud_ind[1]]))
 
-        self.tau = -0.5 * np.log(transmittance_factor)
+    difference = (np.array(taus) - tau_transmittance) ** 2
 
-        return self.tau
+    f_diff = interp1d(lidar_ratios, difference, kind="quadratic")
 
-    def fit2(self):
-        s = self._range_corrected_signal()
-        ref_base = self._ref_base[1]
-        ref_top = self._ref_top[0]
-        s0, s1 = s[ref_base - 5: ref_base + 1].mean(), s[ref_top: ref_top + 5].mean()
-        beta0, beta1 = self._beta[ref_base - 5: ref_base + 1].mean(), self._beta[ref_top: ref_top + 5].mean()
+    new_lr = np.linspace(5, 70, 100)
 
-        transmittance_factor = (s1 * beta0 / (s0 * beta1)
-                                * np.exp(2 * trapz(x=self.z[ref_base: ref_top],
-                                                   y=self._alpha[ref_base: ref_top])))
+    new_diff = f_diff(new_lr)
 
-        self.tau = -0.5 * np.log(transmittance_factor)
+    plt.plot(lidar_ratios, difference, "o")
+    plt.plot(new_lr, new_diff, "k-")
+    plt.plot(new_lr[new_diff.argmin()], min(new_diff), "*")
+    plt.title(f"lidar ratio = {new_lr[new_diff.argmin()].round(2)}")
+    plt.grid()
+    plt.xlabel("Lidar ratio")
+    plt.ylabel("Difference")
+    plt.show()
 
-        return self.tau
-
-    def fit(self):
-        ref_base = self._ref_base[1]
-        ref_top = self._ref_top[0]
-        p0, p1 = self.signal[ref_base - 15: ref_base + 1].mean(), self.signal[ref_top: ref_top + 16].mean()
-        s0, s1 = p0 * self.z[ref_base] ** 2, p1 * self.z[ref_top] ** 2
-        beta0, beta1 = self._beta[ref_base - 5: ref_base + 1].mean(), self._beta[ref_top: ref_top + 5].mean()
-
-        transmittance_factor = (s1 * beta0 / (s0 * beta1)
-                                * np.exp(2 * trapz(x=self.z[ref_base: ref_top],
-                                                   y=self._alpha[ref_base: ref_top])))
-
-        self.tau = -0.5 * np.log(transmittance_factor)
-
-        return self.tau
-
-    def fit3(self):
-        s = self._range_corrected_signal()
-        ref_base = self._ref_base[1]
-        ref_top = self._ref_top[0]
-
-        s0 = s[ref_base - 5: ref_base + 1].mean()
-        beta0 = self._beta[ref_base - 5: ref_base + 1].mean()
-
-        s1_list = s[ref_top: ref_top + 50]
-        beta1_list = self._beta[ref_top: ref_top + 50]
-
-        transmittances = []
-        taus = []
-        for i, (s1, beta1) in enumerate(zip(s1_list, beta1_list)):
-            transmittance_factor = (s1 * beta0 / (s0 * beta1)
-                                    * np.exp(2 * trapz(x=self.z[ref_base:ref_top + i],
-                                                       y=self._alpha[ref_base:ref_top + i])))
-            transmittances.append(transmittance_factor)
-            taus.append(-0.5 * np.log(transmittance_factor))
-
-        plt.plot(s1_list, transmittances, ".", label=f"tau={np.mean(taus).round(2)} +- {np.std(taus, ddof=1).round(2)}")
-        plt.grid()
-        plt.legend()
-        plt.show()
-
-        plt.plot(s1_list, taus, ".", label=f"tau={np.mean(taus).round(2)} +- {np.std(taus, ddof=1).round(2)}")
-        plt.grid()
-        plt.legend()
-        plt.show()
-
-        return np.mean(taus)
+    return new_lr[new_diff.argmin()]
