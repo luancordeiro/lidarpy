@@ -82,7 +82,7 @@ def get_lidar_ratio(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p
         klett.set_lidar_ratio(lidar_ratio)
         alpha, *_ = klett.fit()
         taus.append(trapz(alpha[cloud_ind[0]:cloud_ind[1] + 1],
-                          lidar_data.coords["altitude"].data[cloud_ind[0]:cloud_ind[1]]))
+                          lidar_data.coords["altitude"].data[cloud_ind[0]:cloud_ind[1] + 1]))
 
     difference = (np.array(taus) - tau_transmittance) ** 2
 

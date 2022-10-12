@@ -21,8 +21,6 @@ df_sol = pd.read_csv("data/355_lalinet_solution.txt", delimiter="\t")
 df_sol = (df_sol
           .assign(Pressure=lambda x: x["Pressure"] * 100)
           .assign(temperature=lambda x: x["temperature"] + 273.15))
-print(df_sol.head())
-print(df_sol[["particle_extinction_coefficient"]].describe())
 
 df_sonde = pd.read_csv("data/sonde_lalinet.txt", delimiter="\t")
 df_sonde = (df_sonde
@@ -35,12 +33,13 @@ for title, link in zip(titles, links):
 
     ds = xr.DataArray(my_data[:, 1], dims=["altitude"])
     ds.coords["altitude"] = my_data[:, 0]
+    ds = xr.Dataset({"phy": ds})
 
     plt.figure(figsize=(12, 7))
-    plt.plot(ds.coords["altitude"].data, ds.data * ds.coords["altitude"].data ** 2)
+    plt.plot(ds.coords["altitude"].data, ds.phy.data * ds.coords["altitude"].data ** 2)
     indx = (ds.coords["altitude"].data > 9000) & (ds.coords["altitude"].data < 15000)
     plt.plot(ds.coords["altitude"].data[indx],
-             (ds.data * ds.coords["altitude"].data ** 2)[indx],
+             (ds.phy.data * ds.coords["altitude"].data ** 2)[indx],
              "*",
              color="red",
              label="reference region")

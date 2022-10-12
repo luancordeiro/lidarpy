@@ -17,19 +17,23 @@ window = 5
 signals = [signal_smoother(df_elastic_signals["MeanSignal"], df_elastic_signals["Altitude"].to_numpy(), window),
            signal_smoother(df_raman_signals["MeanSignal"], df_elastic_signals["Altitude"].to_numpy(), window)]
 
-ds = xr.DataArray(signals,
-                  coords=(["355_1", "387_1"], df_elastic_signals["Altitude"].to_numpy()),
-                  dims=["wavelength", "altitude"])
+ds = xr.Dataset(
+    {
+        "phy": xr.DataArray(signals,
+                            coords=(["355_1", "387_1"], df_elastic_signals["Altitude"].to_numpy()),
+                            dims=["wavelength", "altitude"])
+    }
+)
 
 plt.plot(ds.coords["altitude"].data,
-         ds.sel(wavelength="355_1").data * ds.coords["altitude"].data ** 2)
+         ds.sel(wavelength="355_1").phy.data * ds.coords["altitude"].data ** 2)
 
 nbins = 1
 ds = ds.pipe(groupby_nbins, nbins)
 df_temp_pressure = df_temp_pressure.groupby(df_temp_pressure.index // nbins).mean()
 
 plt.plot(ds.coords["altitude"].data,
-         ds.sel(wavelength="355_1").data * ds.coords["altitude"].data ** 2)
+         ds.sel(wavelength="355_1").phy.data * ds.coords["altitude"].data ** 2)
 plt.xlabel("Altitude (m)")
 plt.ylabel("RCS")
 plt.grid()

@@ -11,7 +11,8 @@ my_data = np.genfromtxt(link)
 
 ds = xr.DataArray(my_data[:, 1], dims=["altitude"])
 ds.coords["altitude"] = my_data[:, 0]
-print(ds.shape)
+ds = xr.Dataset({"phy": ds})
+print(ds.phy.shape)
 
 df_sonde = pd.read_csv("data/sonde_lalinet.txt", delimiter="\t")
 
@@ -25,10 +26,10 @@ print(df_sonde.head())
 print()
 
 plt.figure(figsize=(12, 7))
-plt.plot(ds.coords["altitude"].data, ds.data * ds.coords["altitude"].data ** 2)
+plt.plot(ds.coords["altitude"].data, ds.phy.data * ds.coords["altitude"].data ** 2)
 indx = (ds.coords["altitude"].data > 6500) & (ds.coords["altitude"].data < 14000)
 plt.plot(ds.coords["altitude"].data[indx],
-         (ds.data * ds.coords["altitude"].data ** 2)[indx],
+         (ds.phy.data * ds.coords["altitude"].data ** 2)[indx],
          "*",
          color="red",
          label="reference region")
@@ -41,9 +42,9 @@ plt.show()
 indx_tau = (ds.coords["altitude"].data > 5700) & (ds.coords["altitude"].data < 6300)
 
 plt.figure(figsize=(12, 7))
-plt.plot(ds.coords["altitude"].data, ds.data * ds.coords["altitude"].data ** 2)
+plt.plot(ds.coords["altitude"].data, ds.phy.data * ds.coords["altitude"].data ** 2)
 plt.plot(ds.coords["altitude"].data[indx_tau],
-         (ds.data * ds.coords["altitude"].data ** 2)[indx_tau],
+         (ds.phy.data * ds.coords["altitude"].data ** 2)[indx_tau],
          "*",
          color="red",
          label="tau region")

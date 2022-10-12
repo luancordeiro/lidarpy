@@ -1,26 +1,54 @@
-from lidarpy.data.read_binary import GetData
-from lidarpy.data.manipulation import remove_background, atmospheric_interpolation
-from lidarpy.inversion.transmittance import Transmittance
-import os
-# import matplotlib.pyplot as plt
+import xarray as xr
 import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from lidarpy.inversion.transmittance import get_cod
+from lidarpy.data.manipulation import remove_background, remove_background_fit
 
-directory = "data/binary"
-files = [file for file in os.listdir(directory) if file.startswith("RM")]
+weak_cloud = 1
 
-data = GetData(directory, files)
+link = ["http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500.txt",
+        "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500_v2.txt"]
 
-lidar_data = data.get_xarray()
+if weak_cloud:
+    df_sol = pd.read_csv("data/sol_lalinet_weak_cloud.txt", delimiter="\t")
 
-lidar_data = lidar_data.pipe(remove_background, [25_000, 80_000])
+my_data = np.genfromtxt(link[weak_cloud])
 
-lidar_data = lidar_data.mean("time")
+ds = xr.DataArray(my_data[:, 1], dims=["altitude"])
+ds.coords["altitude"] = my_data[:, 0]
+print(ds.shape)
+ds = xr.Dataset({"phy": ds})
 
-ds = lidar_data[[1, 3], 1100:2100].rolling(altitude=7).mean().dropna("altitude")
+df_sonde = pd.read_csv("data/sonde_lalinet.txt", delimiter="\t")
 
-temperature, pressure = atmospheric_interpolation(ds.coords["altitude"].data,
-                                                  pd.read_csv("data/sonde_data.txt"))
+df_sonde = (df_sonde
+            .assign(pressure=lambda x: x.pressure * 100)
+            .assign(temperature=lambda x: x.temperature + 273.15)
+            [["altitude", "pressure", "temperature"]])
 
-tau = Transmittance(ds, [11_700, 15_350], 355, pressure, temperature).fit()
+print()
+print(df_sonde.head())
+print()
 
-print(f"tau = {tau}")
+plt.plot(ds.phy.data * ds.coords["altitude"] ** 2, label="antes")
+
+ds = ds.pipe(remove_background, [10_000, 14_000])
+
+ds = ds.pipe(remove_background_fit,
+             355,
+             df_sonde.pressure.to_numpy(),
+             df_sonde.temperature.to_numpy(),
+             [10_000, 14_000])
+
+plt.plot(ds.phy.data * ds.coords["altitude"] ** 2, label="depois")
+plt.legend()
+plt.show()
+
+tau = get_cod(ds,
+              [5800, 6150],
+              355,
+              df_sonde["pressure"].to_numpy(),
+              df_sonde["temperature"].to_numpy())
+
+print(tau)

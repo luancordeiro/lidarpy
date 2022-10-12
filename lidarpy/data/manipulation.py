@@ -18,10 +18,13 @@ def remove_background(ds: xr.Dataset, alt_ref: list) -> xr.Dataset:
     ds_clean = ds.pipe(remove_background, [30_000, 50_000])
     """
     background = (ds
+                  .phy
                   .sel(altitude=slice(*alt_ref))
                   .mean("altitude"))
 
-    return ds - background
+    ds.phy.data = (ds.phy - background).data
+
+    return ds
 
 
 def groupby_nbins(ds: xr.Dataset, n_bins: int) -> xr.Dataset:
@@ -91,7 +94,7 @@ def remove_background_fit(lidar_data: xr.Dataset, wavelength, p_air, t_air, alt_
 
     signal -= reg[1]
 
-    data.data = signal
+    data.phy.data = signal
 
     return data
 
@@ -137,7 +140,7 @@ def z_finder(altitude: np.array, alts):
     def finder(z: int):
         return round((z - altitude[0]) / (altitude[1] - altitude[0]))
 
-    if type(alts) == int:
+    if type(alts) in [int, float, np.float64]:
         return finder(alts)
 
     indx = []

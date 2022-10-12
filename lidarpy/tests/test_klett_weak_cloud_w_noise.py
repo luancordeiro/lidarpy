@@ -25,12 +25,13 @@ for link, title in zip(links, titles):
     ds = xr.DataArray(my_data[:, 1], dims=["altitude"])
     ds.coords["altitude"] = my_data[:, 0]
     print(ds.shape)
+    ds = xr.Dataset({"phy": ds})
 
     plt.figure(figsize=(12, 7))
-    plt.plot(ds.coords["altitude"].data, ds.data * ds.coords["altitude"].data ** 2)
+    plt.plot(ds.coords["altitude"].data, ds.phy.data * ds.coords["altitude"].data ** 2)
     indx = (ds.coords["altitude"].data > 6500) & (ds.coords["altitude"].data < 14000)
     plt.plot(ds.coords["altitude"].data[indx],
-             (ds.data * ds.coords["altitude"].data ** 2)[indx],
+             (ds.phy.data * ds.coords["altitude"].data ** 2)[indx],
              "*",
              color="red",
              label="reference region")

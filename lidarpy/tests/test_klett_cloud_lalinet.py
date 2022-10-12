@@ -3,11 +3,10 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import cumtrapz
-from lidarpy.inversion.transmittance import get_cod
 from lidarpy.inversion.klett import Klett
 from lidarpy.plot.plotter import plot_3graph_std, compare_w_sol
 
-weak_cloud = 0
+weak_cloud = 1
 
 link = ["http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500.txt",
         "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500_v2.txt"]
@@ -19,7 +18,9 @@ my_data = np.genfromtxt(link[weak_cloud])
 
 ds = xr.DataArray(my_data[:, 1], dims=["altitude"])
 ds.coords["altitude"] = my_data[:, 0]
-print(ds.shape)
+ds = xr.Dataset({"phy": ds})
+
+print(ds.phy.shape)
 
 df_sonde = pd.read_csv("data/sonde_lalinet.txt", delimiter="\t")
 
@@ -33,10 +34,10 @@ print(df_sonde.head())
 print()
 
 plt.figure(figsize=(12, 7))
-plt.plot(ds.coords["altitude"].data, ds.data * ds.coords["altitude"].data ** 2)
+plt.plot(ds.coords["altitude"].data, ds.phy.data * ds.coords["altitude"].data ** 2)
 indx = (ds.coords["altitude"].data > 6500) & (ds.coords["altitude"].data < 14000)
 plt.plot(ds.coords["altitude"].data[indx],
-         (ds.data * ds.coords["altitude"].data ** 2)[indx],
+         (ds.phy.data * ds.coords["altitude"].data ** 2)[indx],
          "*",
          color="red",
          label="reference region")
@@ -45,16 +46,6 @@ plt.ylabel("RCS")
 plt.xlabel("altitude (m)")
 plt.grid()
 plt.show()
-
-tau = get_cod(ds,
-              [5800, 6150],
-              355,
-              df_sonde["pressure"].to_numpy(),
-              df_sonde["temperature"].to_numpy())
-
-print("----------------------------")
-print(f"AOD_transmittance = {tau.round(2)}")
-print("----------------------------")
 
 klett = Klett(ds,
               355,

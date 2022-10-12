@@ -20,6 +20,8 @@ ds = xr.DataArray(my_data[:, 1], dims=["altitude"])
 ds.coords["altitude"] = my_data[:, 0]
 print(ds.shape)
 
+ds = xr.Dataset({"phy": ds})
+
 df_sonde = pd.read_csv("data/sonde_lalinet.txt", delimiter="\t")
 
 df_sonde = (df_sonde
