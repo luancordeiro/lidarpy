@@ -2,10 +2,8 @@ import numpy as np
 import xarray as xr
 from scipy.integrate import cumtrapz, trapz
 from scipy.optimize import curve_fit
-from scipy.interpolate import interp1d
 from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
-from lidarpy.data.manipulation import z_finder
-import matplotlib.pyplot as plt
+from lidarpy.data.manipulation import z_finder, filter_wavelength
 
 
 def calib_strategy1(signal: np.array,
@@ -75,17 +73,12 @@ class Klett:
     _calib_strategies = {True: calib_strategy1, False: calib_strategy2}
     _mc_bool = True
 
-    def __init__(self, lidar_data: xr.DataArray, wavelength: int, p_air: np.ndarray, t_air: np.ndarray, z_ref: list,
+    def __init__(self, lidar_data: xr.Dataset, wavelength: int, p_air: np.ndarray, t_air: np.ndarray, z_ref: list,
                  lidar_ratio: float, pc: bool = True, co2ppmv: int = 392, correct_noise: bool = True,
                  mc_iter: int = None, tau_ind: np.array = None):
-        if wavelength in lidar_data.dims:
-            self.signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
-        else:
-            self.signal = lidar_data.data
-
         if (mc_iter is not None) & (tau_ind is None):
             raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
-
+        self.signal = filter_wavelength(lidar_data, wavelength, pc)
         self.z = lidar_data.coords["altitude"].data
         self.ref = z_ref
         self._calib_strategy = self._calib_strategies[correct_noise]

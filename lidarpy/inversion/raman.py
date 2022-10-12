@@ -1,6 +1,7 @@
 import xarray as xr
 import numpy as np
 from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
+from lidarpy.data.manipulation import filter_wavelength
 from scipy.integrate import cumtrapz, trapz
 from sklearn.linear_model import LinearRegression
 
@@ -65,15 +66,13 @@ class Raman:
     _diff_strategy = diff_linear_regression
     _mc_bool = True
 
-    def __init__(self, lidar_data: xr.DataArray, lidar_wavelength: int, raman_wavelength: int, angstrom_coeff: float,
+    def __init__(self, lidar_data: xr.Dataset, lidar_wavelength: int, raman_wavelength: int, angstrom_coeff: float,
                  p_air: np.array, t_air: np.array, z_ref: int, pc: bool = True, co2ppmv: int = 392, mc_iter: int = None,
                  tau_ind: np.array = None):
         if (mc_iter is not None) and (tau_ind is None):
             raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
-
-        data_label = [f"{wave}_{int(pc)}" for wave in [lidar_wavelength, raman_wavelength]]
-        self.elastic_signal = lidar_data.sel(wavelength=data_label[0]).data
-        self.inelastic_signal = lidar_data.sel(wavelength=data_label[1]).data
+        self.elastic_signal = filter_wavelength(lidar_data, lidar_wavelength, pc)
+        self.inelastic_signal = filter_wavelength(lidar_data, raman_wavelength, pc)
         self.z = lidar_data.coords["altitude"].data
         self.p_air = p_air
         self.t_air = t_air

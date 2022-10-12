@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 
 
-def remove_background(ds, alt_ref: list):
+def remove_background(ds: xr.Dataset, alt_ref: list) -> xr.Dataset:
     """
     Remove o ruído molecular de fundo de acordo com uma altura de referência
 
@@ -17,18 +17,14 @@ def remove_background(ds, alt_ref: list):
     Exemplo:
     ds_clean = ds.pipe(remove_background, [30_000, 50_000])
     """
-
-    jump = ds.coords["altitude"].data[1] - ds.coords["altitude"].data[0]
-
     background = (ds
-                  .sel(altitude=np.arange(alt_ref[0], alt_ref[1], jump),
-                       method="nearest")
+                  .sel(altitude=slice(*alt_ref))
                   .mean("altitude"))
 
     return ds - background
 
 
-def groupby_nbins(ds, n_bins):
+def groupby_nbins(ds: xr.Dataset, n_bins: int) -> xr.Dataset:
     """Agrupa o ds a cada n_bins
 
     O código está meio feio, mas aparentemente funciona
@@ -57,20 +53,16 @@ def atmospheric_interpolation(z, df_sonde):
     return temperature, pressure
 
 
-def molecular_model(lidar_data, wavelength, p_air, t_air, alt_ref, co2ppmv=392, pc=True):
-    if "wavelength" in lidar_data.dims:
-        signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
-    else:
-        signal = lidar_data.data
-
-    alpha_beta_mol = AlphaBetaMolecular(p_air, t_air, wavelength, co2ppmv)
-    alpha_mol, beta_mol, _ = alpha_beta_mol.get_params()
+def molecular_model(lidar_data: xr.Dataset, wavelength, p_air, t_air, alt_ref, co2ppmv=392, pc=True) -> np.array:
+    alpha_mol, beta_mol, _ = AlphaBetaMolecular(p_air, t_air, wavelength, co2ppmv).get_params()
 
     z = lidar_data.coords["altitude"].data
+
     model = beta_mol * np.exp(-2 * cumtrapz(z, alpha_mol, initial=0)) / z ** 2
 
-    ref = lidar_data.coords["altitude"].sel(altitude=alt_ref, method="nearest").data
-    ref = np.where((z == ref[0]) | (z == ref[1]))[0]
+    ref = z_finder(z, alt_ref)
+
+    signal = filter_wavelength(lidar_data, wavelength, pc)
 
     reg = np.polyfit(np.log(model[ref[0]:ref[1]]),
                      np.log(signal[ref[0]:ref[1]]),
@@ -79,21 +71,19 @@ def molecular_model(lidar_data, wavelength, p_air, t_air, alt_ref, co2ppmv=392, 
     return np.exp(reg[0] * np.log(model) + reg[1])
 
 
-def remove_background_fit(lidar_data, wavelength, p_air, t_air, alt_ref, co2ppmv=392, pc=True) -> xr.DataArray:
+def remove_background_fit(lidar_data: xr.Dataset, wavelength, p_air, t_air, alt_ref, co2ppmv=392,
+                          pc=True) -> xr.Dataset:
     data = lidar_data.copy()
-    if "wavelength" in lidar_data.dims:
-        signal = data.sel(wavelength=f"{wavelength}_{int(pc)}").data
-    else:
-        signal = data.data
 
-    alpha_beta_mol = AlphaBetaMolecular(p_air, t_air, wavelength, co2ppmv)
-    alpha_mol, beta_mol, _ = alpha_beta_mol.get_params()
+    alpha_mol, beta_mol, _ = AlphaBetaMolecular(p_air, t_air, wavelength, co2ppmv).get_params()
 
     z = lidar_data.coords["altitude"].data
+
     model = beta_mol * np.exp(-2 * cumtrapz(z, alpha_mol, initial=0)) / z ** 2
 
-    ref = data.coords["altitude"].sel(altitude=alt_ref, method="nearest").data
-    ref = np.where((z == ref[0]) | (z == ref[1]))[0]
+    ref = z_finder(z, alt_ref)
+
+    signal = filter_wavelength(data, wavelength, pc)
 
     reg = np.polyfit(model[ref[0]:ref[1]],
                      signal[ref[0]:ref[1]],
@@ -106,7 +96,7 @@ def remove_background_fit(lidar_data, wavelength, p_air, t_air, alt_ref, co2ppmv
     return data
 
 
-def smooth(signal, window):
+def smooth(signal: np.array, window: int):
     if window % 2 == 0:
         raise Exception("Window value must be odd")
     out0 = np.convolve(signal, np.ones(window, dtype=int), 'valid') / window
@@ -116,7 +106,7 @@ def smooth(signal, window):
     return np.concatenate((start, out0, stop))
 
 
-def smooth_diego_fast(signal, p_before, p_after):
+def smooth_diego_fast(signal: np.array, p_before: int, p_after: int):
     sm = p_before + p_after + 1
     y_sm = smooth(signal, sm)
     y_sm4 = np.zeros(y_sm.shape)
@@ -124,12 +114,12 @@ def smooth_diego_fast(signal, p_before, p_after):
     return y_sm4
 
 
-def signal_smoother(signal, altitude, window):
+def signal_smoother(signal: np.array, altitude: np.array, window: int):
     vec_smooth = smooth(signal, window)
     vec_aux = vec_smooth[::window]
     z_aux = altitude[::window]
     if z_aux[-1] < altitude[-1]:
-        ind = np.where(altitude == z_aux[-1])[0][0]
+        ind = z_finder(altitude, z_aux[-1])
         vec_aux = np.append(vec_aux, signal[ind:])
         z_aux = np.append(z_aux, altitude[ind:])
     func = interp1d(z_aux, vec_aux)
@@ -144,7 +134,7 @@ def signal_smoother(signal, altitude, window):
 
 
 def z_finder(altitude: np.array, alts):
-    def finder(z):
+    def finder(z: int):
         return round((z - altitude[0]) / (altitude[1] - altitude[0]))
 
     if type(alts) == int:
@@ -157,12 +147,8 @@ def z_finder(altitude: np.array, alts):
     return indx
 
 
-def get_uncertainty(lidar_data, wavelength, bg_ref: list, nshoots: int, pc: bool = True):
-    if "wavelength" in lidar_data.dims:
-        signal = lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").data
-    else:
-        signal = lidar_data.data
-
+def get_uncertainty(lidar_data: xr.Dataset, wavelength: int, bg_ref: list, nshoots: int, pc: bool = True):
+    signal = filter_wavelength(lidar_data, wavelength, pc)
     t = nshoots / 20e6
     n = t * signal * 1e-6
     index = z_finder(lidar_data.coords["altitude"].data, bg_ref)
@@ -175,7 +161,7 @@ def get_uncertainty(lidar_data, wavelength, bg_ref: list, nshoots: int, pc: bool
     return sigma_n * 1e-6 / t
 
 
-def dead_time_correction(lidar_data, dead_time):
+def dead_time_correction(lidar_data: xr.Dataset, dead_time: float):
     dead_times = np.array([
         dead_time * wavelength.endswith("1") for wavelength in lidar_data.coords["wavelength"].data
     ])
@@ -189,3 +175,12 @@ def dead_time_correction(lidar_data, dead_time):
     print(lidar_data.sel(wavelength="355_1").data[:10])
 
     return lidar_data
+
+
+def filter_wavelength(lidar_data: xr.Dataset, wavelength: int, pc: bool):
+    if "wavelength" in lidar_data.dims:
+        signal = lidar_data.phy.sel(wavelength=f"{wavelength}_{int(pc)}").data
+    else:
+        signal = lidar_data.phy.data
+
+    return signal
