@@ -21,13 +21,13 @@ class CloudFinder:
                                if "wavelength" in lidar_data.dims else lidar_data)
         ref = z_finder(lidar_data.coords["altitude"].data, self._alt_max)
         self.z = lidar_data.coords["altitude"][ref_min:ref].data
-        self.signal = self._original_data.data[ref_min:ref]
+        self.signal = self._original_data.phy.data[ref_min:ref]
         self.sigma = sigma[ref_min:ref]
         self.window = window
         self.jdz = jdz
 
     def _rcs_with_smooth(self):
-        signal_w_smooth = smooth(self._original_data.data, self.window)
+        signal_w_smooth = smooth(self._original_data.phy.data, self.window)
         z_aux = self._original_data.coords["altitude"].data[::self.window]
         rcs_aux = signal_w_smooth[::self.window] * z_aux ** 2
         f_rcs = interp1d(z_aux, rcs_aux)
