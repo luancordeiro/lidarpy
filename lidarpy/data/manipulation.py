@@ -24,6 +24,8 @@ def remove_background(ds: xr.Dataset, alt_ref: list) -> xr.Dataset:
 
     ds.phy.data = (ds.phy - background).data
 
+    ds = ds.assign(background=background)
+
     return ds
 
 
@@ -150,32 +152,28 @@ def z_finder(altitude: np.array, alts):
     return indx
 
 
-def get_uncertainty(lidar_data: xr.Dataset, wavelength: int, bg_ref: list, nshoots: int, pc: bool = True):
+def get_uncertainty(lidar_data: xr.Dataset, wavelength: int, nshoots: int, pc: bool = True):
     signal = filter_wavelength(lidar_data, wavelength, pc)
     t = nshoots / 20e6
-    n = t * signal * 1e-6
-    index = z_finder(lidar_data.coords["altitude"].data, bg_ref)
-    bg = signal[index[0]:index[1]].mean()
-    n_bg = t * bg * 1e6
-    sigma_n = (n + n_bg) ** 0.5
+    n = t * signal * 1e6
 
-    plt.plot(lidar_data.coords["altitude"].data, sigma_n * 1e-6 / t)
-    plt.show()
+    n_bg = t * lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").background.data * 1e6
+    sigma_n = ((n + n_bg.reshape(-1, 1) * np.ones(n.shape)) ** 0.5).reshape(-1)
+
     return sigma_n * 1e-6 / t
 
 
 def dead_time_correction(lidar_data: xr.Dataset, dead_time: float):
-    dead_times = np.array([
-        dead_time * wavelength.endswith("1") for wavelength in lidar_data.coords["wavelength"].data
-    ])
+    if "wavelength" in lidar_data.dims:
+        dead_times = np.array([
+            dead_time * wavelength.endswith("1") for wavelength in lidar_data.coords["wavelength"].data
+        ]).reshape(-1, 1)
+    else:
+        dead_times = dead_time
 
-    print(lidar_data.sel(wavelength="355_1").data[:10])
-    new_signals = []
-    for i, dead_time in enumerate(dead_times):
-        old_signal = lidar_data.isel(wavelength=i).data
-        new_signals.append(old_signal / (1 - dead_time * old_signal))
-    lidar_data.data = new_signals
-    print(lidar_data.sel(wavelength="355_1").data[:10])
+    new_signals = lidar_data.phy / (1 - dead_times * lidar_data.phy)
+
+    lidar_data.phy.data = new_signals.data
 
     return lidar_data
 

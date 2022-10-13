@@ -21,8 +21,8 @@ else:
     lidar_data = (
         data
         .get_xarray()
-        # .pipe(remove_background, [25_000, 80_000])
-        # .pipe(dead_time_correction, 0.004)
+        .pipe(remove_background, [25_000, 80_000])
+        .pipe(dead_time_correction, 0.004)
     )
 
     # sigma = get_uncertainty(lidar_data,
