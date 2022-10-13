@@ -1,5 +1,5 @@
 from lidarpy.data.read_binary import GetData
-from lidarpy.data.manipulation import remove_background, get_uncertainty, dead_time_correction
+from lidarpy.data.manipulation import remove_background, get_uncertainty, dead_time_correction, z_finder
 import os
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,14 +23,12 @@ else:
         .get_xarray()
         .pipe(remove_background, [25_000, 80_000])
         .pipe(dead_time_correction, 0.004)
+        .mean("time")
     )
 
-    # sigma = get_uncertainty(lidar_data,
-    #                         355,
-    #                         [25_000, 50_000],
-    #                         9000)
-    sigma = lidar_data.phy.sel(wavelength="355_1", altitude=slice(7.5, 30_001)).std("time", ddof=1)
-    lidar_data = lidar_data.sel(wavelength="355_1", altitude=slice(7.5, 30_001)).mean("time")
+    sigma = lidar_data.pipe(get_uncertainty, 355, 600 * 15)
+    lidar_data = lidar_data.sel(wavelength="355_1", altitude=slice(7.5, 30_001))
+    sigma = sigma[:max(lidar_data.phy.shape)]
 
 jdz = 735036.004918982
 
