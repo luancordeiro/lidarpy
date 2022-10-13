@@ -24,6 +24,8 @@ def get_cod(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p_air: np
                                        fit_ref,
                                        co2ppmv)
 
+    fit_ref = z_finder(z, fit_ref)
+
     molecular_rcs = molecular_signal * z ** 2
 
     rcs = signal * z ** 2
