@@ -37,6 +37,7 @@ def get_cod(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p_air: np
 
     plt.figure(figsize=(12, 5))
     plt.plot(z, rcs, "b-", label="Lidar profile")
+    print(fit_ref)
     plt.plot(z[fit_ref[0]:fit_ref[1]], rcs[fit_ref[0]:fit_ref[1]], "y--", label="Fit region")
     # plt.plot(self.z[cloud_lims], rcs[cloud_lims], "b*", label="Cloud lims")
     plt.plot(z, molecular_rcs, "k-", label="Mol. profile")

@@ -1,5 +1,5 @@
 from lidarpy.data.read_binary import GetData
-from lidarpy.data.manipulation import remove_background, get_uncertainty, dead_time_correction, z_finder
+from lidarpy.data.manipulation import remove_background, get_uncertainty, dead_time_correction
 import os
 import matplotlib.pyplot as plt
 import numpy as np
@@ -16,7 +16,7 @@ if open_diego_data:
 else:
     directory = "data/binary"
     files = [file for file in os.listdir(directory) if file.startswith("RM")]
-    data = GetData(directory, files[:25])
+    data = GetData(directory, files[:15])
 
     lidar_data = (
         data
@@ -48,11 +48,15 @@ plt.show()
 cloud = CloudFinder(lidar_data, 355, 378, 5, jdz)
 z_base, z_top, z_max_capa, nfz_base, nfz_top, nfz_max_capa = cloud.fit()
 
+print("z_base", z_base)
+print("z_top", z_top)
+
 rcs = (lidar_data.phy * lidar_data.coords["altitude"] ** 2)
 indx_base = lidar_data.coords["altitude"].sel(altitude=z_base, method="nearest").data
 indx_base = lidar_data.coords["altitude"].isin(indx_base)
 indx_top = lidar_data.coords["altitude"].sel(altitude=z_top, method="nearest").data
 indx_top = lidar_data.coords["altitude"].isin(indx_top)
+
 
 plt.plot(lidar_data.coords["altitude"], lidar_data.phy * lidar_data.coords["altitude"] ** 2, "k-", alpha=0.6)
 plt.plot([lidar_data.coords["altitude"][indx_base]] * 2,
