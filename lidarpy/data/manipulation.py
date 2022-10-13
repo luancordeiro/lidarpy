@@ -156,11 +156,13 @@ def get_uncertainty(lidar_data: xr.Dataset, wavelength: int, nshoots: int, pc: b
     signal = filter_wavelength(lidar_data, wavelength, pc)
     t = nshoots / 20e6
     n = t * signal * 1e6
-
     n_bg = t * lidar_data.sel(wavelength=f"{wavelength}_{int(pc)}").background.data * 1e6
     sigma_n = ((n + n_bg.reshape(-1, 1) * np.ones(n.shape)) ** 0.5).reshape(-1)
-
-    return sigma_n * 1e-6 / t
+    data = lidar_data.copy()
+    da_sigma = xr.DataArray(sigma_n * 1e-6 / t, dims=["altitude"])
+    da_sigma.coords["altitude"] = lidar_data.coords["altitude"].data
+    data = data.assign(sigma=da_sigma)
+    return data
 
 
 def dead_time_correction(lidar_data: xr.Dataset, dead_time: float):

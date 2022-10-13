@@ -17,12 +17,11 @@ lidar_copy = lidar_data.mean("time").phy.copy()
 lidar_data = (lidar_data
               .mean("time")
               .pipe(remove_background, [119100, 122850])
-              .pipe(dead_time_correction, 0.004))
-
-sigma = lidar_data.pipe(get_uncertainty, 355, 600 * 15)
+              .pipe(dead_time_correction, 0.004)
+              .pipe(get_uncertainty, 355, 600 * 15))
 
 z = lidar_data.coords["altitude"].data
-plt.plot(z[:3999], (sigma * z ** 2)[:3999])
+plt.plot(z[:3999], (lidar_data.sigma.data * z ** 2)[:3999])
 plt.show()
 
 plt.plot(z[:3999], sigma_diego * z[:3999] ** 2)

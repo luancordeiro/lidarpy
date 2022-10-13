@@ -15,14 +15,14 @@ def _datevec(ordinal):
 class CloudFinder:
     _alt_max = 25000
 
-    def __init__(self, lidar_data: xr.Dataset, sigma, wavelength: int, ref_min: int, window: int, jdz: float,
+    def __init__(self, lidar_data: xr.Dataset, wavelength: int, ref_min: int, window: int, jdz: float,
                  pc: bool = True):
         self._original_data = (lidar_data.phy.sel(wavelength=f"{wavelength}_{int(pc)}")
                                if "wavelength" in lidar_data.dims else lidar_data)
         ref = z_finder(lidar_data.coords["altitude"].data, self._alt_max)
         self.z = lidar_data.coords["altitude"][ref_min:ref].data
         self.signal = self._original_data.phy.data[ref_min:ref]
-        self.sigma = sigma[ref_min:ref]
+        self.sigma = lidar_data.sigma.data[ref_min:ref]
         self.window = window
         self.jdz = jdz
 

@@ -24,30 +24,28 @@ else:
         .pipe(remove_background, [25_000, 80_000])
         .pipe(dead_time_correction, 0.004)
         .mean("time")
+        .pipe(get_uncertainty, 355, 600 * 15)
     )
 
-    sigma = lidar_data.pipe(get_uncertainty, 355, 600 * 15)
     lidar_data = lidar_data.sel(wavelength="355_1", altitude=slice(7.5, 30_001))
-    sigma = sigma[:max(lidar_data.phy.shape)]
 
 jdz = 735036.004918982
 
 print(lidar_data.phy.shape)
 print(lidar_data.coords["altitude"].shape)
-print(sigma.shape)
 plt.plot(lidar_data.coords["altitude"], lidar_data.phy * lidar_data.coords["altitude"] ** 2, "--")
 plt.ylabel("RCS")
 plt.xlabel("Altitude (m)")
 plt.grid()
 plt.show()
 #
-plt.plot(lidar_data.coords["altitude"], sigma * lidar_data.coords["altitude"] ** 2, "--")
+plt.plot(lidar_data.coords["altitude"], lidar_data.sigma.data * lidar_data.coords["altitude"] ** 2, "--")
 plt.ylabel("sigma")
 plt.xlabel("Altitude (m)")
 plt.grid()
 plt.show()
 
-cloud = CloudFinder(lidar_data, sigma, 355, 378, 5, jdz)
+cloud = CloudFinder(lidar_data, 355, 378, 5, jdz)
 z_base, z_top, z_max_capa, nfz_base, nfz_top, nfz_max_capa = cloud.fit()
 
 rcs = (lidar_data.phy * lidar_data.coords["altitude"] ** 2)
