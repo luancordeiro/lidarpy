@@ -75,8 +75,8 @@ class Klett:
 
     def __init__(self, lidar_data: xr.Dataset, wavelength: int, p_air: np.ndarray, t_air: np.ndarray, z_ref: list,
                  lidar_ratio: float, pc: bool = True, co2ppmv: int = 392, correct_noise: bool = True,
-                 mc_iter: int = None, tau_ind: np.array = None):
-        if (mc_iter is not None) & (tau_ind is None):
+                 mc_iter: int = None, tau_lims: np.array = None):
+        if (mc_iter is not None) & (tau_lims is None):
             raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
         self.signal = filter_wavelength(lidar_data, wavelength, pc)
         self.z = lidar_data.coords["altitude"].data
@@ -85,6 +85,7 @@ class Klett:
         self._get_alpha_beta_molecular(p_air, t_air, wavelength * 1e-9, co2ppmv)
         self._lr['aer'] = lidar_ratio
         self.mc_iter = mc_iter
+        self.tau_lims = z_finder(self.z, tau_lims)
 
     def __str__(self):
         return f"Lidar ratio = {self._lr['aer']}"
@@ -170,7 +171,8 @@ class Klett:
             alpha, beta, _ = self.fit()
             alphas.append(alpha)
             betas.append(beta)
-            taus.append(trapz(alphas[-1][self.tau_ind], self.z[self.tau_ind]))
+            taus.append(trapz(alphas[-1][self.tau_lims[0]: self.tau_lims[1]],
+                              self.z[self.tau_lims[0]: self.tau_lims[1]]))
 
         self._alpha['aer'] = np.mean(alphas, axis=0)
         self._alpha['tot'] = self._alpha['mol'] + self._alpha['aer']

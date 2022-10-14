@@ -62,7 +62,7 @@ klett = Klett(ds,
               [6500, 14000],
               28,
               mc_iter=200,
-              tau_ind=indx_tau)
+              tau_lims=[5700, 6300])
 
 alpha, alpha_std, beta, beta_std, lr, tau, tau_std = klett.fit()
 
