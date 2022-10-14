@@ -2,7 +2,6 @@ from lidarpy.data.read_binary import GetData
 from lidarpy.data.manipulation import remove_background, get_uncertainty, dead_time_correction
 import os
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import xarray as xr
 from lidarpy.clouds.cloud_detection import CloudFinder
