@@ -4,6 +4,7 @@ import pandas as pd
 from lidarpy.inversion.raman import Raman
 from lidarpy.plot.plotter import compare_w_sol
 from lidarpy.data.manipulation import groupby_nbins, signal_smoother
+from lidarpy.data.manipulation import remove_background, remove_background_fit
 import matplotlib.pyplot as plt
 
 df_elastic_signals = pd.read_csv("data/raman/elastic_signal.txt")
@@ -29,7 +30,10 @@ plt.plot(ds.coords["altitude"].data,
          ds.sel(wavelength="355_1").phy.data * ds.coords["altitude"].data ** 2)
 
 nbins = 1
-ds = ds.pipe(groupby_nbins, nbins)
+ds = (ds
+      .pipe(remove_background, [20_000, 30_000])
+      .pipe(groupby_nbins, nbins)
+      )
 df_temp_pressure = df_temp_pressure.groupby(df_temp_pressure.index // nbins).mean()
 
 plt.plot(ds.coords["altitude"].data,
@@ -46,7 +50,7 @@ alpha, beta, lr = Raman(ds.isel(altitude=indx),
                         1.8,
                         df_temp_pressure["Pressure"].to_numpy()[indx],
                         df_temp_pressure["Temperature"].to_numpy()[indx],
-                        12_000).fit(diff_window=15)
+                        12_000).fit(diff_window=5)
 
 indx_sol = (df_sol["Altitude"] > 300) & (df_sol["Altitude"] < 9000)
 
