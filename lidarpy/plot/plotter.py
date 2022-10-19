@@ -84,7 +84,7 @@ def compare_w_sol(x_comp, y_comp, x_exact, y_exact, ylabel):
     plt.rcParams.update({'font.family': 'serif', 'font.size': 22, 'font.weight': 'light'})
     plt.rc('legend', fontsize=16)
 
-    labels = ["Extinction (1 / m)", "Backscatter (1 / (m sr))"]
+    labels = ["Extinction (1 / m)", "Backscatter (1 / (m sr))", "Lidar Ratio (sr)"]
     ylabel = labels[ylabel] if type(ylabel) == int else ylabel
 
     plt.figure(figsize=(12, 7))

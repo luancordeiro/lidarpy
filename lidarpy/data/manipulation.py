@@ -96,7 +96,7 @@ def remove_background_fit(lidar_data: xr.Dataset, wavelength, p_air, t_air, alt_
 
     signal -= reg[1]
 
-    data.phy.data = signal
+    data.phy.sel(wavelength=f"{wavelength}_{int(pc)}").data = signal
 
     return data
 

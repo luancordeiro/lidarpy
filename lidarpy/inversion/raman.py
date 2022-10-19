@@ -1,8 +1,9 @@
 import xarray as xr
 import numpy as np
 from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
-from lidarpy.data.manipulation import filter_wavelength
+from lidarpy.data.manipulation import z_finder, filter_wavelength
 from scipy.integrate import cumtrapz, trapz
+from scipy.signal import savgol_filter
 from sklearn.linear_model import LinearRegression
 
 
@@ -68,7 +69,7 @@ class Raman:
 
     def __init__(self, lidar_data: xr.Dataset, lidar_wavelength: int, raman_wavelength: int, angstrom_coeff: float,
                  p_air: np.array, t_air: np.array, z_ref: int, pc: bool = True, co2ppmv: int = 392, mc_iter: int = None,
-                 tau_ind: np.array = None):
+                 tau_ind: np.array = None, delta_ref: int = 1500):
         if (mc_iter is not None) and (tau_ind is None):
             raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
         self.elastic_signal = filter_wavelength(lidar_data, lidar_wavelength, pc)
@@ -82,11 +83,8 @@ class Raman:
         self.raman_wavelength = raman_wavelength * 1e-9
         self.angstrom_coeff = angstrom_coeff
         self.co2ppmv = co2ppmv
-
-        z_ref = lidar_data.coords["altitude"].sel(altitude=z_ref, method="nearest").data
-        z_delta_ref = lidar_data.coords["altitude"].sel(altitude=z_ref - 2000, method="nearest").data
-        self._ref = np.where(self.z == z_ref)[0][0]
-        self._delta_ref = self._ref - np.where(self.z == z_delta_ref)[0][0]
+        self._ref = z_finder(self.z, z_ref)
+        self._delta_ref = z_finder(self.z, z_ref + delta_ref) - self._ref
 
         self._get_alpha_beta_molecular(co2ppmv)
 
@@ -122,8 +120,10 @@ class Raman:
     def _diff(self, num_density, ranged_corrected_signal, z) -> np.array:
         """Realiza a suavizacao da curva e, em seguida, calcula a derivada necessaria para o calculo do coeficiente de
         extincao dos aerossois com base na estrategia escolhida."""
-        y = np.log(num_density / ranged_corrected_signal)
-        return self._diff_strategy(y, z, self._diff_window)
+        dif_num_density = self._diff_strategy(num_density, z, self._diff_window)
+        dif_ranged_corrected_signal = self._diff_strategy(ranged_corrected_signal, z, self._diff_window)
+
+        return (dif_num_density / num_density) - (dif_ranged_corrected_signal / ranged_corrected_signal)
 
     def _alpha_elastic_aer(self) -> np.array:
         """Retorna o coeficiente de extincao de aerossois."""
@@ -175,9 +175,13 @@ class Raman:
 
         self._beta["elastic_aer"] = self._beta_elastic_total() - self._beta["elastic_mol"]
 
-        return (self._alpha["elastic_aer"],
-                self._beta["elastic_aer"],
-                self._alpha["elastic_aer"] / self._beta["elastic_aer"])
+        n_sg = round(0.625 * self._diff_window + 0.23)
+
+        return (
+            self._alpha["elastic_aer"],
+            self._beta["elastic_aer"],
+            self._alpha["elastic_aer"] / savgol_filter(self._beta["elastic_aer"], n_sg, 2)
+        )
 
     def _mc_fit(self, diff_strategy, diff_window):
         self._mc_bool = False
