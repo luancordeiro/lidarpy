@@ -15,7 +15,7 @@ def get_cod(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p_air: np
 
     fit_ref = [cloud_lims[0] - fit_delta_z - 100, cloud_lims[0] - 100]
 
-    transmittance_ref = z_finder(lidar_data.coords["rangebin"].data, cloud_lims[1] + delta_z)
+    transmittance_ref = z_finder(rangebin, cloud_lims[1] + delta_z)
 
     molecular_signal = molecular_model(lidar_data,
                                        wavelength,
