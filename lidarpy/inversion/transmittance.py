@@ -8,12 +8,12 @@ from scipy.interpolate import interp1d
 
 
 def get_cod(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p_air: np.ndarray, t_air: np.ndarray,
-            pc=True, co2ppmv: int = 392, delta_z=200):
+            pc=True, co2ppmv: int = 392, fit_delta_z=2000, delta_z=200):
     signal = filter_wavelength(lidar_data, wavelength, pc)
 
     rangebin = lidar_data.coords["rangebin"].data
 
-    fit_ref = [cloud_lims[0] - 2000, cloud_lims[0]]
+    fit_ref = [cloud_lims[0] - fit_delta_z - 50, cloud_lims[0] - 50]
 
     transmittance_ref = z_finder(lidar_data.coords["rangebin"].data, cloud_lims[1] + delta_z)
 
