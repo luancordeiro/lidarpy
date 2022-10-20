@@ -25,45 +25,44 @@ ds = xr.Dataset(
     {
         "phy": xr.DataArray(signals,
                             coords=(["355_1", "387_1"], df_elastic_signals["Altitude"].to_numpy()),
-                            dims=["wavelength", "altitude"])
+                            dims=["channel", "rangebin"])
     }
 )
 
-plt.plot(ds.coords["altitude"].data,
-         ds.sel(wavelength="355_1").phy.data * ds.coords["altitude"].data ** 2)
+plt.plot(ds.coords["rangebin"].data,
+         ds.sel(channel="355_1").phy.data * ds.coords["rangebin"].data ** 2)
 
 nbins = 4
 window = 3
 ds = (ds
       .pipe(remove_background, [28_000, 30_000])
       .pipe(groupby_nbins, nbins)
-      .rolling(altitude=window, center=True)
+      .rolling(rangebin=window, center=True)
       .mean()
-      .dropna("altitude")
+      .dropna("rangebin")
       )
 
 df_temp_pressure = df_temp_pressure.groupby(df_temp_pressure.index // nbins).mean()
 
-plt.plot(ds.coords["altitude"].data,
-         ds.sel(wavelength="355_1").phy.data * ds.coords["altitude"].data ** 2)
+plt.plot(ds.coords["rangebin"].data,
+         ds.sel(channel="355_1").phy.data * ds.coords["rangebin"].data ** 2)
 plt.xlabel("Altitude (m)")
 plt.ylabel("RCS")
 plt.grid()
 plt.show()
 
-indx = np.where((ds.coords["altitude"] > 300) & (ds.coords["altitude"] < 11500))[0]
-raman = Raman(ds.isel(altitude=indx),
+indx = np.where((ds.coords["rangebin"] > 300) & (ds.coords["rangebin"] < 20000))[0]
+raman = Raman(ds.isel(rangebin=indx),
               355,
               387,
               1.8,
               df_temp_pressure["Pressure"].to_numpy()[indx],
               df_temp_pressure["Temperature"].to_numpy()[indx],
-              10_000,
-              delta_ref=1000)
+              [10000, 12000])
 
 alpha, beta, lr = raman.fit(diff_window=5)
 
-max_range = 3000
+max_range = 7000
 
 indx_sol = (df_sol["Altitude"] > 300) & (df_sol["Altitude"] < max_range)
 

@@ -68,8 +68,8 @@ class Raman:
     _mc_bool = True
 
     def __init__(self, lidar_data: xr.Dataset, lidar_wavelength: int, raman_wavelength: int, angstrom_coeff: float,
-                 p_air: np.array, t_air: np.array, z_ref: int, pc: bool = True, co2ppmv: int = 392, mc_iter: int = None,
-                 tau_ind: np.array = None, delta_ref: int = 1500):
+                 p_air: np.array, t_air: np.array, z_ref: list, pc: bool = True, co2ppmv: int = 392,
+                 mc_iter: int = None, tau_ind: np.array = None):
         if (mc_iter is not None) and (tau_ind is None):
             raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
         self.elastic_signal = filter_wavelength(lidar_data, lidar_wavelength, pc)
@@ -84,7 +84,9 @@ class Raman:
         self.angstrom_coeff = angstrom_coeff
         self.co2ppmv = co2ppmv
         self._ref = z_finder(self.rangebin, z_ref)
-        self._delta_ref = z_finder(self.rangebin, z_ref + delta_ref) - self._ref
+        self._mean_ref = (self._ref[0] + self._ref[1]) // 2
+        print(self._ref)
+        print(self._mean_ref)
 
         self._get_alpha_beta_molecular(co2ppmv)
 
@@ -141,10 +143,10 @@ class Raman:
         return self._alpha["inelastic_aer"] + self._alpha["inelastic_mol"]
 
     def _ref_value(self, y):
-        p = np.poly1d(np.polyfit(self.rangebin[self._ref - self._delta_ref: self._ref + self._delta_ref + 1],
-                                 y[self._ref - self._delta_ref: self._ref + self._delta_ref + 1], 1))
+        p = np.poly1d(np.polyfit(self.rangebin[self._ref[0]: self._ref[1] + 1],
+                                 y[self._ref[0]: self._ref[1] + 1], 1))
 
-        return p(self.rangebin[self._ref])
+        return p(self.rangebin[self._mean_ref])
 
     def _beta_elastic_total(self) -> np.array:
         scatterer_numerical_density = self._raman_scatterer_numerical_density()
@@ -154,9 +156,11 @@ class Raman:
                         * (scatterer_numerical_density / self._ref_value(scatterer_numerical_density)))
 
         attenuation_ratio = (np.exp(-cumtrapz(x=self.rangebin, y=self._alpha_inelastic_total(), initial=0)
-                                    + trapz(x=self.rangebin[:self._ref + 1], y=self._alpha_inelastic_total()[:self._ref + 1]))
+                                    + trapz(x=self.rangebin[:self._mean_ref + 1],
+                                            y=self._alpha_inelastic_total()[:self._mean_ref + 1]))
                              / np.exp(-cumtrapz(x=self.rangebin, y=self._alpha_elastic_total(), initial=0)
-                                      + trapz(x=self.rangebin[:self._ref + 1], y=self._alpha_elastic_total()[:self._ref + 1])))
+                                      + trapz(x=self.rangebin[:self._mean_ref + 1],
+                                              y=self._alpha_elastic_total()[:self._mean_ref + 1])))
 
         beta_ref = self._ref_value(self._beta["elastic_mol"])
 

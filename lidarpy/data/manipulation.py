@@ -40,12 +40,12 @@ def groupby_nbins(ds: xr.Dataset, n_bins: int) -> xr.Dataset:
     rangebin = ds.coords["rangebin"].data
 
     return (ds
-            .assign_coords(rangebin=np.arange(len(rangebin)) // n_bins)
-            .groupby("rangebin")
-            .sum()
-            .assign_coords(
+    .assign_coords(rangebin=np.arange(len(rangebin)) // n_bins)
+    .groupby("rangebin")
+    .sum()
+    .assign_coords(
         rangebin=lambda x: [rangebin[i * n_bins:(i + 1) * n_bins].mean() for i in range(len(x.rangebin))])
-            )
+    )
 
 
 def atmospheric_interpolation(rangebin, df_sonde):
@@ -184,8 +184,10 @@ def dead_time_correction(lidar_data: xr.Dataset, dead_time: float):
         ]).reshape(-1, 1)
     else:
         dead_times = dead_time
-
-    new_signals = lidar_data.phy / (1 - dead_times * lidar_data.phy)
+    try:
+        new_signals = lidar_data.phy / (1 - dead_times * lidar_data.phy)
+    except:
+        new_signals = lidar_data.phy / (1 - dead_times.reshape(-1, 1, 1) * lidar_data.phy)
 
     lidar_data.phy.data = new_signals.data
 
