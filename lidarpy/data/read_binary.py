@@ -210,6 +210,7 @@ class GetData:
         ds = xr.Dataset(das)
         first_head["ch"] = first_ch
         ds.attrs = first_head
+        ds = ds.assign(rcs=lambda x: ds.phy * ds.coords["rangebin"].data ** 2)
         return ds
 
     def to_netcdf(self, directory: str = None, save_name: str = None) -> None:
