@@ -33,7 +33,7 @@ plt.plot(ds.coords["altitude"].data,
          ds.sel(wavelength="355_1").phy.data * ds.coords["altitude"].data ** 2)
 
 nbins = 4
-window = 10
+window = 3
 ds = (ds
       .pipe(remove_background, [28_000, 30_000])
       .pipe(groupby_nbins, nbins)
@@ -63,22 +63,26 @@ raman = Raman(ds.isel(altitude=indx),
 
 alpha, beta, lr = raman.fit(diff_window=5)
 
-indx_sol = (df_sol["Altitude"] > 300) & (df_sol["Altitude"] < 8000)
+max_range = 3000
 
-compare_w_sol(raman.z[raman.z < 8000],
-              alpha[raman.z < 8000],
+indx_sol = (df_sol["Altitude"] > 300) & (df_sol["Altitude"] < max_range)
+
+compare_w_sol(raman.z[raman.z < max_range],
+              alpha[raman.z < max_range],
               df_sol["Altitude"][indx_sol],
               df_sol["Extinction"][indx_sol],
               0)
 
-compare_w_sol(raman.z[raman.z < 8000],
-              beta[raman.z < 8000],
+compare_w_sol(raman.z[raman.z < max_range],
+              beta[raman.z < max_range],
               df_sol["Altitude"][indx_sol],
               df_sol["Backscatter"][indx_sol],
               1)
 
-compare_w_sol(raman.z[raman.z < 8000],
-              lr[raman.z < 8000],
+compare_w_sol(raman.z[raman.z < max_range],
+              lr[raman.z < max_range],
               df_sol["Altitude"][indx_sol],
               df_sol["Lidarratio"][indx_sol],
               2)
+
+print(lr[raman.z < max_range].mean())
