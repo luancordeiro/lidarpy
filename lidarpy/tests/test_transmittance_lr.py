@@ -5,7 +5,7 @@ from lidarpy.inversion.transmittance import get_lidar_ratio
 from lidarpy.data.manipulation import remove_background, remove_background_fit
 from lidarpy.inversion.klett import Klett
 
-weak_cloud = 0
+weak_cloud = 1
 
 link = ["http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500.txt",
         "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500_v2.txt"]
@@ -15,8 +15,8 @@ if weak_cloud:
 
 my_data = np.genfromtxt(link[weak_cloud])
 
-ds = xr.DataArray(my_data[:, 1], dims=["altitude"])
-ds.coords["altitude"] = my_data[:, 0]
+ds = xr.DataArray(my_data[:, 1], dims=["rangebin"])
+ds.coords["rangebin"] = my_data[:, 0]
 print(ds.shape)
 
 ds = xr.Dataset({"phy": ds})

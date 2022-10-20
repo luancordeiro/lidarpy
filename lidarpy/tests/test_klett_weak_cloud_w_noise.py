@@ -22,16 +22,16 @@ df_sonde = (df_sonde
 
 for link, title in zip(links, titles):
     my_data = np.genfromtxt(link)
-    ds = xr.DataArray(my_data[:, 1], dims=["altitude"])
-    ds.coords["altitude"] = my_data[:, 0]
+    ds = xr.DataArray(my_data[:, 1], dims=["rangebin"])
+    ds.coords["rangebin"] = my_data[:, 0]
     print(ds.shape)
     ds = xr.Dataset({"phy": ds})
 
     plt.figure(figsize=(12, 7))
-    plt.plot(ds.coords["altitude"].data, ds.phy.data * ds.coords["altitude"].data ** 2)
-    indx = (ds.coords["altitude"].data > 6500) & (ds.coords["altitude"].data < 14000)
-    plt.plot(ds.coords["altitude"].data[indx],
-             (ds.phy.data * ds.coords["altitude"].data ** 2)[indx],
+    plt.plot(ds.coords["rangebin"].data, ds.phy.data * ds.coords["rangebin"].data ** 2)
+    indx = (ds.coords["rangebin"].data > 6500) & (ds.coords["rangebin"].data < 14000)
+    plt.plot(ds.coords["rangebin"].data[indx],
+             (ds.phy.data * ds.coords["rangebin"].data ** 2)[indx],
              "*",
              color="red",
              label="reference region")
@@ -51,8 +51,8 @@ for link, title in zip(links, titles):
 
     alpha, beta, lr = klett.fit()
 
-    ind = (ds.coords["altitude"] > 4000) & (ds.coords["altitude"] < 8000)
-    compare_w_sol(ds.coords["altitude"].data[ind],
+    ind = (ds.coords["rangebin"] > 4000) & (ds.coords["rangebin"] < 8000)
+    compare_w_sol(ds.coords["rangebin"].data[ind],
                   alpha[ind],
                   df_sol["z"].to_numpy()[ind],
                   df_sol["alpha-cld"].to_numpy()[ind],

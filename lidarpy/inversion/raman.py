@@ -74,7 +74,7 @@ class Raman:
             raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
         self.elastic_signal = filter_wavelength(lidar_data, lidar_wavelength, pc)
         self.inelastic_signal = filter_wavelength(lidar_data, raman_wavelength, pc)
-        self.z = lidar_data.coords["altitude"].data
+        self.rangebin = lidar_data.coords["rangebin"].data
         self.p_air = p_air
         self.t_air = t_air
         self.mc_iter = mc_iter
@@ -83,8 +83,8 @@ class Raman:
         self.raman_wavelength = raman_wavelength * 1e-9
         self.angstrom_coeff = angstrom_coeff
         self.co2ppmv = co2ppmv
-        self._ref = z_finder(self.z, z_ref)
-        self._delta_ref = z_finder(self.z, z_ref + delta_ref) - self._ref
+        self._ref = z_finder(self.rangebin, z_ref)
+        self._delta_ref = z_finder(self.rangebin, z_ref + delta_ref) - self._ref
 
         self._get_alpha_beta_molecular(co2ppmv)
 
@@ -128,8 +128,8 @@ class Raman:
     def _alpha_elastic_aer(self) -> np.array:
         """Retorna o coeficiente de extincao de aerossois."""
         diff_num_signal = self._diff(self._raman_scatterer_numerical_density(),
-                                     self.inelastic_signal * self.z ** 2,
-                                     self.z)
+                                     self.inelastic_signal * self.rangebin ** 2,
+                                     self.rangebin)
 
         return (diff_num_signal - self._alpha['elastic_mol'] - self._alpha['inelastic_mol']) / \
                (1 + (self.lidar_wavelength / self.raman_wavelength) ** self.angstrom_coeff)
@@ -141,10 +141,10 @@ class Raman:
         return self._alpha["inelastic_aer"] + self._alpha["inelastic_mol"]
 
     def _ref_value(self, y):
-        p = np.poly1d(np.polyfit(self.z[self._ref - self._delta_ref: self._ref + self._delta_ref + 1],
+        p = np.poly1d(np.polyfit(self.rangebin[self._ref - self._delta_ref: self._ref + self._delta_ref + 1],
                                  y[self._ref - self._delta_ref: self._ref + self._delta_ref + 1], 1))
 
-        return p(self.z[self._ref])
+        return p(self.rangebin[self._ref])
 
     def _beta_elastic_total(self) -> np.array:
         scatterer_numerical_density = self._raman_scatterer_numerical_density()
@@ -153,10 +153,10 @@ class Raman:
                          / (self._ref_value(self.elastic_signal) * self.inelastic_signal))
                         * (scatterer_numerical_density / self._ref_value(scatterer_numerical_density)))
 
-        attenuation_ratio = (np.exp(-cumtrapz(x=self.z, y=self._alpha_inelastic_total(), initial=0)
-                                    + trapz(x=self.z[:self._ref + 1], y=self._alpha_inelastic_total()[:self._ref + 1]))
-                             / np.exp(-cumtrapz(x=self.z, y=self._alpha_elastic_total(), initial=0)
-                                      + trapz(x=self.z[:self._ref + 1], y=self._alpha_elastic_total()[:self._ref + 1])))
+        attenuation_ratio = (np.exp(-cumtrapz(x=self.rangebin, y=self._alpha_inelastic_total(), initial=0)
+                                    + trapz(x=self.rangebin[:self._ref + 1], y=self._alpha_inelastic_total()[:self._ref + 1]))
+                             / np.exp(-cumtrapz(x=self.rangebin, y=self._alpha_elastic_total(), initial=0)
+                                      + trapz(x=self.rangebin[:self._ref + 1], y=self._alpha_elastic_total()[:self._ref + 1])))
 
         beta_ref = self._ref_value(self._beta["elastic_mol"])
 
@@ -205,7 +205,7 @@ class Raman:
             alphas.append(alpha)
             betas.append(beta)
             lrs.append(lr)
-            taus.append(trapz(alphas[-1][self.tau_ind], self.z[self.tau_ind]))
+            taus.append(trapz(alphas[-1][self.tau_ind], self.rangebin[self.tau_ind]))
 
         self._alpha["elastic_aer"] = np.mean(alphas, axis=0)
         self._alpha_std = np.std(alphas, ddof=1, axis=0)

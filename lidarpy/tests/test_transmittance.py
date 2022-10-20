@@ -15,8 +15,8 @@ if weak_cloud:
 
 my_data = np.genfromtxt(link[weak_cloud])
 
-ds = xr.DataArray(my_data[:, 1], dims=["altitude"])
-ds.coords["altitude"] = my_data[:, 0]
+ds = xr.DataArray(my_data[:, 1], dims=["rangebin"])
+ds.coords["rangebin"] = my_data[:, 0]
 print(ds.shape)
 ds = xr.Dataset({"phy": ds})
 
@@ -31,7 +31,7 @@ print()
 print(df_sonde.head())
 print()
 
-plt.plot(ds.phy.data * ds.coords["altitude"] ** 2, label="antes")
+plt.plot(ds.phy.data * ds.coords["rangebin"] ** 2, label="antes")
 
 ds = ds.pipe(remove_background, [10_000, 14_000])
 
@@ -41,7 +41,7 @@ ds = ds.pipe(remove_background_fit,
              df_sonde.temperature.to_numpy(),
              [10_000, 14_000])
 
-plt.plot(ds.phy.data * ds.coords["altitude"] ** 2, label="depois")
+plt.plot(ds.phy.data * ds.coords["rangebin"] ** 2, label="depois")
 plt.legend()
 plt.show()
 

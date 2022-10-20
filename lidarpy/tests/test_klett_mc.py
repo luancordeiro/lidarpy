@@ -9,8 +9,8 @@ link = "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1
 # link = "http://lalinet.org/uploads/Analysis/Concepcion2014/SynthProf_cld6km_abl1500_v2.txt"
 my_data = np.genfromtxt(link)
 
-ds = xr.DataArray(my_data[:, 1], dims=["altitude"])
-ds.coords["altitude"] = my_data[:, 0]
+ds = xr.DataArray(my_data[:, 1], dims=["rangebin"])
+ds.coords["rangebin"] = my_data[:, 0]
 ds = xr.Dataset({"phy": ds})
 print(ds.phy.shape)
 
@@ -26,10 +26,10 @@ print(df_sonde.head())
 print()
 
 plt.figure(figsize=(12, 7))
-plt.plot(ds.coords["altitude"].data, ds.phy.data * ds.coords["altitude"].data ** 2)
-indx = (ds.coords["altitude"].data > 6500) & (ds.coords["altitude"].data < 14000)
-plt.plot(ds.coords["altitude"].data[indx],
-         (ds.phy.data * ds.coords["altitude"].data ** 2)[indx],
+plt.plot(ds.coords["rangebin"].data, ds.phy.data * ds.coords["rangebin"].data ** 2)
+indx = (ds.coords["rangebin"].data > 6500) & (ds.coords["rangebin"].data < 14000)
+plt.plot(ds.coords["rangebin"].data[indx],
+         (ds.phy.data * ds.coords["rangebin"].data ** 2)[indx],
          "*",
          color="red",
          label="reference region")
@@ -39,12 +39,12 @@ plt.xlabel("altitude (m)")
 plt.grid()
 plt.show()
 
-indx_tau = (ds.coords["altitude"].data > 5700) & (ds.coords["altitude"].data < 6300)
+indx_tau = (ds.coords["rangebin"].data > 5700) & (ds.coords["rangebin"].data < 6300)
 
 plt.figure(figsize=(12, 7))
-plt.plot(ds.coords["altitude"].data, ds.phy.data * ds.coords["altitude"].data ** 2)
-plt.plot(ds.coords["altitude"].data[indx_tau],
-         (ds.phy.data * ds.coords["altitude"].data ** 2)[indx_tau],
+plt.plot(ds.coords["rangebin"].data, ds.phy.data * ds.coords["rangebin"].data ** 2)
+plt.plot(ds.coords["rangebin"].data[indx_tau],
+         (ds.phy.data * ds.coords["rangebin"].data ** 2)[indx_tau],
          "*",
          color="red",
          label="tau region")
@@ -66,9 +66,9 @@ klett = Klett(ds,
 
 alpha, alpha_std, beta, beta_std, lr, tau, tau_std = klett.fit()
 
-ind = (ds.coords["altitude"] > 4000) & (ds.coords["altitude"] < 8000)
+ind = (ds.coords["rangebin"] > 4000) & (ds.coords["rangebin"] < 8000)
 
-plot_3graph_std(ds.coords["altitude"][ind],
+plot_3graph_std(ds.coords["rangebin"][ind],
                 alpha[ind],
                 beta[ind],
                 lr * np.ones(alpha.shape)[ind],
@@ -76,7 +76,7 @@ plot_3graph_std(ds.coords["altitude"][ind],
                 beta_std[ind],
                 lr * np.zeros(alpha.shape)[ind])
 
-plt.errorbar(ds.coords["altitude"][ind],
+plt.errorbar(ds.coords["rangebin"][ind],
              alpha[ind],
              alpha_std[ind])
 plt.show()

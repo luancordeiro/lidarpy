@@ -79,13 +79,13 @@ class Klett:
         if (mc_iter is not None) & (tau_lims is None):
             raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
         self.signal = filter_wavelength(lidar_data, wavelength, pc)
-        self.z = lidar_data.coords["altitude"].data
+        self.rangebin = lidar_data.coords["rangebin"].data
         self.ref = z_ref
         self._calib_strategy = self._calib_strategies[correct_noise]
         self._get_alpha_beta_molecular(p_air, t_air, wavelength * 1e-9, co2ppmv)
         self._lr['aer'] = lidar_ratio
         self.mc_iter = mc_iter
-        self.tau_lims = z_finder(self.z, tau_lims)
+        self.tau_lims = z_finder(self.rangebin, tau_lims)
 
     def __str__(self):
         return f"Lidar ratio = {self._lr['aer']}"
@@ -110,14 +110,15 @@ class Klett:
         return self._alpha_std.copy()
 
     def get_model_mol(self) -> np.array:
-        return self._beta['mol'] * np.exp(-2 * cumtrapz(self._alpha['mol'], self.z, initial=0)) / self.z ** 2
+        return (self._beta['mol'] * np.exp(-2 * cumtrapz(self._alpha['mol'], self.rangebin, initial=0))
+                / self.rangebin ** 2)
 
     def _get_alpha_beta_molecular(self, p_air, t_air, wavelength, co2ppmv):
         alpha_beta_mol = AlphaBetaMolecular(p_air, t_air, wavelength, co2ppmv)
         self._alpha['mol'], self._beta['mol'], self._lr['mol'] = alpha_beta_mol.get_params()
 
     def _calib(self, signal):
-        ref = z_finder(self.z, self.ref)
+        ref = z_finder(self.rangebin, self.ref)
 
         if len(ref) > 1:
             signal, model, self.fit_parameters = self._calib_strategy(signal=signal.copy(),
@@ -136,16 +137,16 @@ class Klett:
 
         beta_ref, signal, ref0 = self._calib(self.signal)
 
-        corrected_signal = signal * self.z ** 2
+        corrected_signal = signal * self.rangebin ** 2
 
-        spp = corrected_signal * np.exp(- 2 * cumtrapz(x=self.z,
+        spp = corrected_signal * np.exp(- 2 * cumtrapz(x=self.rangebin,
                                                        y=(self._lr['aer'] - self._lr['mol']) * self._beta['mol'],
                                                        initial=0))
 
         sppr = spp / spp[ref0]
 
-        self._beta['tot'] = sppr / (1 / beta_ref - (cumtrapz(x=self.z, y=2 * self._lr['aer'] * sppr, initial=0)
-                                                    - trapz(x=self.z[:ref0], y=2 * self._lr['aer'] * sppr[:ref0])))
+        self._beta['tot'] = sppr / (1 / beta_ref - (cumtrapz(x=self.rangebin, y=2 * self._lr['aer'] * sppr, initial=0)
+                                                    - trapz(x=self.rangebin[:ref0], y=2 * self._lr['aer'] * sppr[:ref0])))
 
         self._beta['aer'] = self._beta['tot'] - self._beta['mol']
 
@@ -153,7 +154,7 @@ class Klett:
 
         self._alpha['tot'] = self._alpha['mol'] + self._alpha['aer']
 
-        self.tau = trapz(self._alpha["aer"], self.z)
+        self.tau = trapz(self._alpha["aer"], self.rangebin)
 
         return self._alpha["aer"].copy(), self._beta["aer"].copy(), self._lr["aer"]
 
@@ -172,7 +173,7 @@ class Klett:
             alphas.append(alpha)
             betas.append(beta)
             taus.append(trapz(alphas[-1][self.tau_lims[0]: self.tau_lims[1]],
-                              self.z[self.tau_lims[0]: self.tau_lims[1]]))
+                              self.rangebin[self.tau_lims[0]: self.tau_lims[1]]))
 
         self._alpha['aer'] = np.mean(alphas, axis=0)
         self._alpha['tot'] = self._alpha['mol'] + self._alpha['aer']

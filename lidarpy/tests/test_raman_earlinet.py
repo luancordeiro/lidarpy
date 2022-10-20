@@ -67,22 +67,22 @@ max_range = 3000
 
 indx_sol = (df_sol["Altitude"] > 300) & (df_sol["Altitude"] < max_range)
 
-compare_w_sol(raman.z[raman.z < max_range],
-              alpha[raman.z < max_range],
+compare_w_sol(raman.rangebin[raman.rangebin < max_range],
+              alpha[raman.rangebin < max_range],
               df_sol["Altitude"][indx_sol],
               df_sol["Extinction"][indx_sol],
               0)
 
-compare_w_sol(raman.z[raman.z < max_range],
-              beta[raman.z < max_range],
+compare_w_sol(raman.rangebin[raman.rangebin < max_range],
+              beta[raman.rangebin < max_range],
               df_sol["Altitude"][indx_sol],
               df_sol["Backscatter"][indx_sol],
               1)
 
-compare_w_sol(raman.z[raman.z < max_range],
-              lr[raman.z < max_range],
+compare_w_sol(raman.rangebin[raman.rangebin < max_range],
+              lr[raman.rangebin < max_range],
               df_sol["Altitude"][indx_sol],
               df_sol["Lidarratio"][indx_sol],
               2)
 
-print(lr[raman.z < max_range].mean())
+print(lr[raman.rangebin < max_range].mean())

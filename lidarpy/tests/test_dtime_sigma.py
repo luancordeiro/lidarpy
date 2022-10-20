@@ -6,7 +6,7 @@ import xarray as xr
 import matplotlib.pyplot as plt
 
 df = pd.read_csv("data/cloud_detection_tester.txt")
-ds_diego = xr.Dataset({"phy": xr.DataArray(df["2"], dims=["altitude"], coords=[df["1"]])})
+ds_diego = xr.Dataset({"phy": xr.DataArray(df["2"], dims=["rangebin"], coords=[df["1"]])})
 sigma_diego = df["3"].to_numpy()
 
 lidar_data = GetData("data/binary", [file for file in os.listdir("data/binary")
@@ -20,7 +20,7 @@ lidar_data = (lidar_data
               .pipe(dead_time_correction, 0.004)
               .pipe(get_uncertainty, 355, 600 * 15))
 
-z = lidar_data.coords["altitude"].data
+z = lidar_data.coords["rangebin"].data
 plt.plot(z[:3999], (lidar_data.sigma.data * z ** 2)[:3999])
 plt.show()
 

@@ -31,15 +31,15 @@ df_sonde = (df_sonde
 for title, link in zip(titles, links):
     my_data = np.genfromtxt(link)
 
-    ds = xr.DataArray(my_data[:, 1], dims=["altitude"])
-    ds.coords["altitude"] = my_data[:, 0]
+    ds = xr.DataArray(my_data[:, 1], dims=["rangebin"])
+    ds.coords["rangebin"] = my_data[:, 0]
     ds = xr.Dataset({"phy": ds})
 
     plt.figure(figsize=(12, 7))
-    plt.plot(ds.coords["altitude"].data, ds.phy.data * ds.coords["altitude"].data ** 2)
-    indx = (ds.coords["altitude"].data > 9000) & (ds.coords["altitude"].data < 15000)
-    plt.plot(ds.coords["altitude"].data[indx],
-             (ds.phy.data * ds.coords["altitude"].data ** 2)[indx],
+    plt.plot(ds.coords["rangebin"].data, ds.phy.data * ds.coords["rangebin"].data ** 2)
+    indx = (ds.coords["rangebin"].data > 9000) & (ds.coords["rangebin"].data < 15000)
+    plt.plot(ds.coords["rangebin"].data[indx],
+             (ds.phy.data * ds.coords["rangebin"].data ** 2)[indx],
              "*",
              color="red",
              label="reference region")
@@ -59,7 +59,7 @@ for title, link in zip(titles, links):
 
     alpha, beta, lr = klett.fit()
 
-    compare_w_sol(ds.coords["altitude"],
+    compare_w_sol(ds.coords["rangebin"],
                   alpha,
                   df_sol["altitude"],
                   df_sol["particle_extinction_coefficient"],

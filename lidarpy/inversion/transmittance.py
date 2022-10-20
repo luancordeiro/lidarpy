@@ -11,11 +11,11 @@ def get_cod(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p_air: np
             pc=True, co2ppmv: int = 392, delta_z=200):
     signal = filter_wavelength(lidar_data, wavelength, pc)
 
-    z = lidar_data.coords["altitude"].data
+    rangebin = lidar_data.coords["rangebin"].data
 
     fit_ref = [cloud_lims[0] - 2000, cloud_lims[0]]
 
-    transmittance_ref = z_finder(lidar_data.coords["altitude"].data, cloud_lims[1] + delta_z)
+    transmittance_ref = z_finder(lidar_data.coords["rangebin"].data, cloud_lims[1] + delta_z)
 
     molecular_signal = molecular_model(lidar_data,
                                        wavelength,
@@ -24,11 +24,11 @@ def get_cod(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p_air: np
                                        fit_ref,
                                        co2ppmv)
 
-    fit_ref = z_finder(z, fit_ref)
+    fit_ref = z_finder(rangebin, fit_ref)
 
-    molecular_rcs = molecular_signal * z ** 2
+    molecular_rcs = molecular_signal * rangebin ** 2
 
-    rcs = signal * z ** 2
+    rcs = signal * rangebin ** 2
 
     transmittance_ = (rcs[transmittance_ref: transmittance_ref + 150]
                       / molecular_rcs[transmittance_ref: transmittance_ref + 150])
@@ -38,12 +38,12 @@ def get_cod(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p_air: np
     std = transmittance_.std(ddof=1)
 
     plt.figure(figsize=(12, 5))
-    plt.plot(z, rcs, "b-", label="Lidar profile")
+    plt.plot(rangebin, rcs, "b-", label="Lidar profile")
     print(fit_ref)
-    plt.plot(z[fit_ref[0]:fit_ref[1]], rcs[fit_ref[0]:fit_ref[1]], "y--", label="Fit region")
+    plt.plot(rangebin[fit_ref[0]:fit_ref[1]], rcs[fit_ref[0]:fit_ref[1]], "y--", label="Fit region")
     # plt.plot(self.z[cloud_lims], rcs[cloud_lims], "b*", label="Cloud lims")
-    plt.plot(z, molecular_rcs, "k-", label="Mol. profile")
-    plt.plot(z[transmittance_ref: transmittance_ref + 150], rcs[transmittance_ref: transmittance_ref + 150],
+    plt.plot(rangebin, molecular_rcs, "k-", label="Mol. profile")
+    plt.plot(rangebin[transmittance_ref: transmittance_ref + 150], rcs[transmittance_ref: transmittance_ref + 150],
              "y*", label="transmittance")
     plt.grid()
     plt.yscale("log")
@@ -53,7 +53,7 @@ def get_cod(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p_air: np
     plt.show()
 
     plt.figure(figsize=(12, 5))
-    transmittance_z = z[transmittance_ref: transmittance_ref + 150]
+    transmittance_z = rangebin[transmittance_ref: transmittance_ref + 150]
     plt.plot(transmittance_z, transmittance_)
     plt.plot([transmittance_z[0], transmittance_z[-1]], [mean, mean], "k--")
     plt.title(f"mean value = {mean.round(4)} +- {std.round(4)}")
@@ -76,7 +76,7 @@ def get_lidar_ratio(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p
 
     lidar_ratios = np.arange(5, 75, 5)
 
-    cloud_ind = z_finder(lidar_data.coords["altitude"].data, cloud_lims)
+    cloud_ind = z_finder(lidar_data.coords["rangebin"].data, cloud_lims)
 
     klett = Klett(lidar_data, wavelength, p_air, t_air, z_ref, 1, pc, co2ppmv, correct_noise)
 
@@ -85,7 +85,7 @@ def get_lidar_ratio(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p
         klett.set_lidar_ratio(lidar_ratio)
         alpha, *_ = klett.fit()
         taus.append(trapz(alpha[cloud_ind[0]:cloud_ind[1] + 1],
-                          lidar_data.coords["altitude"].data[cloud_ind[0]:cloud_ind[1] + 1]))
+                          lidar_data.coords["rangebin"].data[cloud_ind[0]:cloud_ind[1] + 1]))
 
     difference = (np.array(taus) - tau_transmittance) ** 2
 

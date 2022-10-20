@@ -151,7 +151,7 @@ class GetData:
 
         return head, phy.T, raw.T
 
-    def get_xarray(self) -> xr.DataArray:
+    def get_xarray(self) -> xr.Dataset:
         """Esse método tá assumindo que todas as observações foram tomadas no mesmo local e nas mesmas condições
         a única diferença é o tempo de início da medida"""
         times = []
@@ -199,9 +199,9 @@ class GetData:
                        for wavelength, photon
                        in zip(head["ch"]["wlen"], head["ch"]["photons"])]
 
-        alt = np.arange(1, len(phys[0][0]) + 1) * 7.5
-        da_phy = xr.DataArray(phys, coords=[times, wavelengths, alt], dims=["time", "wavelength", "altitude"])
-        da_raw = xr.DataArray(raws, coords=[times, wavelengths, alt], dims=["time", "wavelength", "altitude"])
+        rangebin = np.arange(1, len(phys[0][0]) + 1) * 7.5
+        da_phy = xr.DataArray(phys, coords=[times, wavelengths, rangebin], dims=["time", "channel", "rangebin"])
+        da_raw = xr.DataArray(raws, coords=[times, wavelengths, rangebin], dims=["time", "channel", "rangebin"])
         das = {"phy": da_phy, "raw": da_raw}
         vars_ = [datei, houri, datef, hourf, jdi, jdf, pressures_0, temperatures_0]
         names = ["datei", "houri", "datef", "hourf", "jdi", "jdf", "pressure0", "temperature0"]
