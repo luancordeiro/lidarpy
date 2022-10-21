@@ -11,37 +11,42 @@ def diff_(y, x, window=None):
     return np.gradient(y) / np.gradient(x)
 
 
-def diff_linear_regression(y: np.array, x: np.array, window: int = 5, weights: np.array = None):
-    def fit(init, final):
-        y_fit = y[init: final].reshape(-1, 1)
-        x_fit = x[init: final].reshape(-1, 1)
+def diff_linear_regression(num_density, ranged_corrected_signal, rangebin, diff_window, inelastic_uncertainty):
+    def diff(y: np.array, x: np.array, window: int = 5, weights: np.array = None):
+        def fit(init, final):
+            y_fit = y[init: final].reshape(-1, 1)
+            x_fit = x[init: final].reshape(-1, 1)
 
-        if weights is None:
-            linear_regession = LinearRegression().fit(x_fit, y_fit)
-        else:
-            weight_fit = weights[init: final]
-            linear_regession = LinearRegression().fit(x_fit, y_fit, sample_weight=weight_fit)
+            if weights is None:
+                linear_regession = LinearRegression().fit(x_fit, y_fit)
+            else:
+                weight_fit = weights[init: final]
+                linear_regession = LinearRegression().fit(x_fit, y_fit, sample_weight=weight_fit)
 
-        return linear_regession.coef_[0][0]
+            return linear_regession.coef_[0][0]
 
-    if window % 2 == 0:
-        raise ValueError("window must be odd.")
+        if window % 2 == 0:
+            raise ValueError("window must be odd.")
 
-    win = window // 2
-    diff_y = []
-    for i in range(win, len(y) - win - 10 - 1):
-        diff_y.append(fit(i - win, i + win + 1))
-#        if (i % 20 == 0) & (win <= window // 2 + 10):
-#            win += 2
+        win = window // 2
+        diff_y = []
+        for i in range(win, len(y) - win - 10 - 1):
+            diff_y.append(fit(i - win, i + win + 1))
+    #        if (i % 20 == 0) & (win <= window // 2 + 10):
+    #            win += 2
 
-    for i in range(window // 2):
-        # diff_y.insert(i, fit(None, i + window // 2))
-        diff_y.insert(0, diff_y[0])
+        for i in range(window // 2):
+            # diff_y.insert(i, fit(None, i + window // 2))
+            diff_y.insert(0, diff_y[0])
 
-    while len(diff_y) != len(y):
-        diff_y += [diff_y[-1]]
+        while len(diff_y) != len(y):
+            diff_y += [diff_y[-1]]
 
-    return np.array(diff_y)
+        return np.array(diff_y)
+
+    dif_num_density = diff(num_density, rangebin, diff_window, inelastic_uncertainty)
+    dif_ranged_corrected_signal = diff(ranged_corrected_signal, rangebin, diff_window, inelastic_uncertainty)
+    return (dif_num_density / num_density) - (dif_ranged_corrected_signal / ranged_corrected_signal)
 
 
 class Raman:
@@ -74,6 +79,7 @@ class Raman:
             raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
         self.elastic_signal = filter_wavelength(lidar_data, lidar_wavelength, pc)
         self.inelastic_signal = filter_wavelength(lidar_data, raman_wavelength, pc)
+        self.inelastic_uncertainty = None
         self.rangebin = lidar_data.coords["rangebin"].data
         self.p_air = p_air
         self.t_air = t_air
@@ -116,19 +122,19 @@ class Raman:
         atm_numerical_density = self.p_air / (1.380649e-23 * self.t_air)
         return atm_numerical_density * 78.08e-2
 
-    def _diff(self, num_density, ranged_corrected_signal, z) -> np.array:
+    def _diff(self, num_density, ranged_corrected_signal) -> np.array:
         """Realiza a suavizacao da curva e, em seguida, calcula a derivada necessaria para o calculo do coeficiente de
         extincao dos aerossois com base na estrategia escolhida."""
-        dif_num_density = self._diff_strategy(num_density, z, self._diff_window)
-        dif_ranged_corrected_signal = self._diff_strategy(ranged_corrected_signal, z, self._diff_window)
-
-        return (dif_num_density / num_density) - (dif_ranged_corrected_signal / ranged_corrected_signal)
+        return self._diff_strategy(num_density,
+                                   ranged_corrected_signal,
+                                   self.rangebin,
+                                   self._diff_window,
+                                   self.inelastic_uncertainty)
 
     def _alpha_elastic_aer(self) -> np.array:
         """Retorna o coeficiente de extincao de aerossois."""
         diff_num_signal = self._diff(self._raman_scatterer_numerical_density(),
-                                     self.inelastic_signal * self.rangebin ** 2,
-                                     self.rangebin)
+                                     self.inelastic_signal * self.rangebin ** 2)
 
         return (diff_num_signal - self._alpha['elastic_mol'] - self._alpha['inelastic_mol']) / \
                (1 + (self.lidar_wavelength / self.raman_wavelength) ** self.angstrom_coeff)

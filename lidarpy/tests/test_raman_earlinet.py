@@ -4,7 +4,7 @@ import pandas as pd
 from lidarpy.inversion.raman import Raman
 from lidarpy.plot.plotter import compare_w_sol
 from lidarpy.data.manipulation import groupby_nbins
-from lidarpy.data.manipulation import remove_background, dead_time_correction
+from lidarpy.data.manipulation import remove_background, dead_time_correction, get_uncertainty
 
 df_temp_pressure = pd.read_csv("data/netcdf/earlinet_pres_temp.txt", " ")
 ds_solution = xr.open_dataset("data/netcdf/earlinet_solution.nc")
