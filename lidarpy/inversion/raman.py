@@ -85,9 +85,6 @@ class Raman:
         self.co2ppmv = co2ppmv
         self._ref = z_finder(self.rangebin, z_ref)
         self._mean_ref = (self._ref[0] + self._ref[1]) // 2
-        print(self._ref)
-        print(self._mean_ref)
-
         self._get_alpha_beta_molecular(co2ppmv)
 
     def get_alpha(self):
