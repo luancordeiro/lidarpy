@@ -7,11 +7,8 @@ from scipy.signal import savgol_filter
 from sklearn.linear_model import LinearRegression
 
 
-def diff_(y, x, window=None):
-    return np.gradient(y) / np.gradient(x)
-
-
-def diff_linear_regression(num_density, ranged_corrected_signal, rangebin, diff_window, inelastic_uncertainty):
+def diff_linear_regression(num_density: np.array, ranged_corrected_signal: np.array, rangebin: np.array,
+                           diff_window: int, inelastic_uncertainty=None):
     def diff(y: np.array, x: np.array, window: int = 5, weights: np.array = None):
         def fit(init, final):
             y_fit = y[init: final].reshape(-1, 1)
@@ -32,11 +29,8 @@ def diff_linear_regression(num_density, ranged_corrected_signal, rangebin, diff_
         diff_y = []
         for i in range(win, len(y) - win - 10 - 1):
             diff_y.append(fit(i - win, i + win + 1))
-    #        if (i % 20 == 0) & (win <= window // 2 + 10):
-    #            win += 2
 
         for i in range(window // 2):
-            # diff_y.insert(i, fit(None, i + window // 2))
             diff_y.insert(0, diff_y[0])
 
         while len(diff_y) != len(y):
