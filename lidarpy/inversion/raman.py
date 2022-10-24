@@ -2,45 +2,9 @@ import xarray as xr
 import numpy as np
 from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
 from lidarpy.data.manipulation import z_finder, filter_wavelength
+from lidarpy.data.raman_smoothers import diff_linear_regression
 from scipy.integrate import cumtrapz, trapz
 from scipy.signal import savgol_filter
-from sklearn.linear_model import LinearRegression
-
-
-def diff_linear_regression(num_density: np.array, ranged_corrected_signal: np.array, rangebin: np.array,
-                           diff_window: int, inelastic_uncertainty=None):
-    def diff(y: np.array, x: np.array, window: int = 5, weights: np.array = None):
-        def fit(init, final):
-            y_fit = y[init: final].reshape(-1, 1)
-            x_fit = x[init: final].reshape(-1, 1)
-
-            if weights is None:
-                linear_regession = LinearRegression().fit(x_fit, y_fit)
-            else:
-                weight_fit = weights[init: final]
-                linear_regession = LinearRegression().fit(x_fit, y_fit, sample_weight=weight_fit)
-
-            return linear_regession.coef_[0][0]
-
-        if window % 2 == 0:
-            raise ValueError("window must be odd.")
-
-        win = window // 2
-        diff_y = []
-        for i in range(win, len(y) - win - 10 - 1):
-            diff_y.append(fit(i - win, i + win + 1))
-
-        for i in range(window // 2):
-            diff_y.insert(0, diff_y[0])
-
-        while len(diff_y) != len(y):
-            diff_y += [diff_y[-1]]
-
-        return np.array(diff_y)
-
-    dif_num_density = diff(num_density, rangebin, diff_window, inelastic_uncertainty)
-    dif_ranged_corrected_signal = diff(ranged_corrected_signal, rangebin, diff_window, inelastic_uncertainty)
-    return (dif_num_density / num_density) - (dif_ranged_corrected_signal / ranged_corrected_signal)
 
 
 class Raman:
