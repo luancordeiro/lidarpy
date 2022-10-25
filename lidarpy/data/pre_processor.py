@@ -18,5 +18,5 @@ def pre_processor(lidar_data: xr.Dataset, mc_iter: int, process, pc: bool = None
         return (
             ds
             .assign(phy=(ds.dims, np.mean(processed_data, axis=0)))
-            .assign(uncertainty=(ds.dims, np.std(processed_data, axis=0) / np.sqrt(mc_iter)))
+            .assign(sigma=(ds.dims, np.std(processed_data, axis=0, ddof=1) / mc_iter ** 0.5))
         )
