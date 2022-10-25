@@ -39,12 +39,13 @@ def groupby_nbins(ds: xr.Dataset, n_bins: int) -> xr.Dataset:
 
     rangebin = ds.coords["rangebin"].data
 
-    return (ds
-    .assign_coords(rangebin=np.arange(len(rangebin)) // n_bins)
-    .groupby("rangebin")
-    .sum()
-    .assign_coords(
-        rangebin=lambda x: [rangebin[i * n_bins:(i + 1) * n_bins].mean() for i in range(len(x.rangebin))])
+    return (
+        ds
+        .assign_coords(rangebin=np.arange(len(rangebin)) // n_bins)
+        .groupby("rangebin")
+        .sum()
+        .assign_coords(
+            rangebin=lambda x: [rangebin[i * n_bins:(i + 1) * n_bins].mean() for i in range(len(x.rangebin))])
     )
 
 
@@ -154,14 +155,10 @@ def z_finder(rangebin: np.array, alts):
 
     if alts is None:
         return None
-    elif not iterable:
-        return finder(alts)
+    elif iterable:
+        return [finder(alt) for alt in alts]
     else:
-        indx = []
-        for alt in alts:
-            indx.append(finder(alt))
-
-        return indx
+        return finder(alts)
 
 
 def get_uncertainty(lidar_data: xr.Dataset, wavelength: int, nshoots: int, pc: bool = True):
@@ -170,11 +167,7 @@ def get_uncertainty(lidar_data: xr.Dataset, wavelength: int, nshoots: int, pc: b
     n = t * signal * 1e6
     n_bg = t * lidar_data.sel(channel=f"{wavelength}_{int(pc)}").background.data * 1e6
     sigma_n = ((n + n_bg.reshape(-1, 1) * np.ones(n.shape)) ** 0.5).reshape(-1)
-    data = lidar_data.copy()
-    da_sigma = xr.DataArray(sigma_n * 1e-6 / t, dims=["rangebin"])
-    da_sigma.coords["rangebin"] = lidar_data.coords["rangebin"].data
-    data = data.assign(sigma=da_sigma)
-    return data
+    return lidar_data.assign(sigma=xr.DataArray(sigma_n * 1e-6 / t, dims=["rangebin"]))
 
 
 def dead_time_correction(lidar_data: xr.Dataset, dead_time: float):
