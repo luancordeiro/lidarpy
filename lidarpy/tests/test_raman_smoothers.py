@@ -14,8 +14,8 @@ ds_data = xr.open_dataset("data/netcdf/earlinet_data.nc")
 
 wavelengths = [355, 387]  # 355 e 387 ou 532 e 608
 
-n_bins_mean = 1
-n_bins_group = 5
+n_bins_mean = 5
+n_bins_group = 4
 alt_min = 300
 alt_max = 20_000
 ds_data = (ds_data
@@ -23,9 +23,9 @@ ds_data = (ds_data
            .pipe(remove_background, [28_000, 30_000])
            .mean("time")
            .pipe(groupby_nbins, n_bins_group)
-           # .rolling(rangebin=n_bins_mean, center=True)
-           # .mean()
-           # .dropna("rangebin")
+           .rolling(rangebin=n_bins_mean, center=True)
+           .mean()
+           .dropna("rangebin")
            .sel(rangebin=slice(alt_min, alt_max)))
 
 df_temp_pressure = (df_temp_pressure
@@ -33,8 +33,8 @@ df_temp_pressure = (df_temp_pressure
                     .assign(Pressure=lambda x: x.Pressure * 100)
                     .groupby(df_temp_pressure.index // n_bins_group)
                     .mean()
-                    # .rolling(n_bins_mean, center=True)
-                    # .mean()
+                    .rolling(n_bins_mean, center=True)
+                    .mean()
                     .dropna())
 
 df_temp_pressure = df_temp_pressure[(df_temp_pressure.Altitude >= alt_min) & (df_temp_pressure.Altitude <= alt_max)]
@@ -52,14 +52,17 @@ smoothers = {
     # "SG2_W7": get_savgol_filter(7, 2),
     # "SG2_W9": get_savgol_filter(9, 2),
     # "SG2_W11": get_savgol_filter(11, 2),
-    "SG2_W21": get_savgol_filter(21, 2),
+    # "SG2_W21": get_savgol_filter(21, 2),
+    # "SG2_W23": get_savgol_filter(23, 2),
+    "SG2_W31": get_savgol_filter(31, 2),
     # "SG3_W5": get_savgol_filter(5, 3),
     # "SG3_W7": get_savgol_filter(7, 3),
     # "SG3_W9": get_savgol_filter(9, 3),
     # "G0.5": get_gaussian_filter(0.5),
     # "G0.7": get_gaussian_filter(0.7),
-    # "G0.9": get_gaussian_filter(0.9)
-    # "G0.95": get_gaussian_filter(0.95)
+    # "G0.9": get_gaussian_filter(0.9),
+    # "G0.95": get_gaussian_filter(0.95),
+    # "G0.99": get_gaussian_filter(0.99),
 }
 
 
@@ -78,18 +81,21 @@ def get_beta_savgol(window_length, polyorder):
 
 
 beta_smoothers = {
-    # "SG2_W5": get_beta_savgol(5, 2),
-    # "SG2_W7": get_beta_savgol(7, 2),
-    # "SG2_W9": get_beta_savgol(9, 2),
-    # "SG2_W11": get_beta_savgol(11, 2),
+    "SG2_W5": get_beta_savgol(5, 2),
+    "SG2_W7": get_beta_savgol(7, 2),
+    "SG2_W9": get_beta_savgol(9, 2),
+    "SG2_W11": get_beta_savgol(11, 2),
     "SG2_W21": get_beta_savgol(21, 2),
-    # "SG3_W5": get_beta_savgol(5, 3),
-    # "SG3_W7": get_beta_savgol(7, 3),
-    # "SG3_W9": get_beta_savgol(9, 3),
-    # "G0.5": get_beta_gaussian(0.5),
-    # "G0.7": get_beta_gaussian(0.7),
-    # "G0.9": get_beta_gaussian(0.9)
-    # "G0.95": get_beta_gaussian(0.95)
+    "SG2_W23": get_beta_savgol(23, 2),
+    "SG2_W31": get_beta_savgol(31, 2),
+    "SG3_W5": get_beta_savgol(5, 3),
+    "SG3_W7": get_beta_savgol(7, 3),
+    "SG3_W9": get_beta_savgol(9, 3),
+    "G0.5": get_beta_gaussian(0.5),
+    "G0.7": get_beta_gaussian(0.7),
+    "G0.9": get_beta_gaussian(0.9),
+    "G0.95": get_beta_gaussian(0.95),
+    "G0.99": get_beta_gaussian(0.99),
 }
 
 max_range = 6000
@@ -99,8 +105,10 @@ for window in [5, 7, 9, 11, 13, 15]:
     alphas = []
     betas = []
     lidar_ratios = []
-    for value in smoothers.values():
-        alpha_temp, beta_temp, lidar_ratio_temp = raman.fit(diff_strategy=value, diff_window=window)
+    for key, value in smoothers.items():
+        alpha_temp, beta_temp, lidar_ratio_temp = raman.fit(diff_strategy=value,
+                                                            diff_window=window,
+                                                            beta_smoother=beta_smoothers[key])
 
         alphas.append(alpha_temp)
         betas.append(beta_temp)
@@ -123,20 +131,6 @@ for window in [5, 7, 9, 11, 13, 15]:
              label="solution")
     for lidar_ratio, key in zip(lidar_ratios, smoothers.keys()):
         plt.plot(raman.rangebin[raman.rangebin < max_range], lidar_ratio[raman.rangebin < max_range], "--", label=key)
-    plt.title(f"window={window}")
-    plt.legend()
-    plt.grid()
-    plt.show()
-
-    plt.plot(ds_solution.coords["rangebin"][indx_sol],
-             ds_solution.sel(channel=f"{wavelengths[0]}_1").lidar_ratio.data[indx_sol],
-             "k-",
-             label="solution")
-    for (alpha, beta), (key, smoother) in zip(zip(alphas, betas), beta_smoothers.items()):
-        plt.plot(raman.rangebin[raman.rangebin < max_range],
-                 alpha[raman.rangebin < max_range] / smoother(beta[raman.rangebin < max_range]),
-                 "--",
-                 label=key)
     plt.title(f"window={window}")
     plt.legend()
     plt.grid()

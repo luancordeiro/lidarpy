@@ -22,18 +22,16 @@ original_data = (
 )
 
 
-def process(lidar_data):
-    lidar_data = (
-        lidar_data
+def process(lidar_data_):
+    return (
+        lidar_data_
         .pipe(remove_background, [original_data.coords["rangebin"][-1] - 3000, original_data.coords["rangebin"][-1]])
         .pipe(dead_time_correction, 0.004)
         .mean("time")
     )
 
-    return lidar_data
 
-
-ds = ds.pipe(pre_processor, 50, process, True)
+ds = ds.pipe(pre_processor, 500, process, True)
 
 ind_min = int(5000 // 7.5)
 ind_max = int(20_000 // 7.5)

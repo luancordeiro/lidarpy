@@ -66,3 +66,17 @@ def get_gaussian_filter(sigma):
         return (dif_num_density / num_density) - (dif_ranged_corrected_signal / ranged_corrected_signal)
 
     return diff_savgol_filter
+
+
+def get_beta_gaussian(sigma):
+    def smoother_(x):
+        return gaussian_filter(x, sigma)
+
+    return smoother_
+
+
+def get_beta_savgol(window_length, polyorder):
+    def smoother_(x):
+        return savgol_filter(x, window_length, polyorder)
+
+    return smoother_

@@ -31,13 +31,13 @@ class Raman:
     _mc_bool = True
 
     def __init__(self, lidar_data: xr.Dataset, lidar_wavelength: int, raman_wavelength: int, angstrom_coeff: float,
-                 p_air: np.array, t_air: np.array, z_ref: list, pc: bool = True, co2ppmv: int = 392,
-                 mc_iter: int = None, tau_ind: np.array = None):
+                 p_air: np.array, t_air: np.array, z_ref: list, inelastic_uncertainty: np.array = None, pc: bool = True,
+                 co2ppmv: int = 392, mc_iter: int = None, tau_ind: np.array = None):
         if (mc_iter is not None) and (tau_ind is None):
             raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
         self.elastic_signal = filter_wavelength(lidar_data, lidar_wavelength, pc)
         self.inelastic_signal = filter_wavelength(lidar_data, raman_wavelength, pc)
-        self.inelastic_uncertainty = None
+        self.inelastic_uncertainty = inelastic_uncertainty
         self.rangebin = lidar_data.coords["rangebin"].data
         self.p_air = p_air
         self.t_air = t_air
@@ -127,7 +127,7 @@ class Raman:
 
         return beta_ref * signal_ratio * attenuation_ratio
 
-    def fit(self, diff_strategy=diff_linear_regression, diff_window=7):
+    def fit(self, diff_strategy=diff_linear_regression, diff_window=7, beta_smoother=lambda x: x):
         if (self.mc_iter is not None) & self._mc_bool:
             return self._mc_fit(diff_strategy=diff_strategy, diff_window=diff_window)
         self._diff_window = diff_window
@@ -145,7 +145,7 @@ class Raman:
         return (
             self._alpha["elastic_aer"],
             self._beta["elastic_aer"],
-            self._alpha["elastic_aer"] / savgol_filter(self._beta["elastic_aer"], n_sg, 2)
+            self._alpha["elastic_aer"] / beta_smoother(savgol_filter(self._beta["elastic_aer"], n_sg, 2))
         )
 
     def _mc_fit(self, diff_strategy, diff_window):
