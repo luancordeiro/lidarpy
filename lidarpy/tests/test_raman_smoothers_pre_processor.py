@@ -5,6 +5,7 @@ from lidarpy.inversion.raman import Raman
 from lidarpy.data.manipulation import groupby_nbins
 from lidarpy.data.manipulation import remove_background, dead_time_correction, get_uncertainty
 from lidarpy.data.raman_smoothers import get_savgol_filter, get_gaussian_filter
+from lidarpy.data.pre_processor import pre_processor
 from scipy.signal import savgol_filter
 from scipy.ndimage import gaussian_filter
 
@@ -13,19 +14,23 @@ ds_solution = xr.open_dataset("data/netcdf/earlinet_solution.nc")
 ds_data = xr.open_dataset("data/netcdf/earlinet_data.nc")
 
 wavelengths = [355, 387]  # 355 e 387 ou 532 e 608
-
-n_bins_mean = 1
 n_bins_group = 5
+
+
+def process(lidar_data):
+    return (
+        lidar_data
+        .pipe(remove_background, [28_000, 30_000])
+        .mean("time")
+        .pipe(groupby_nbins, n_bins_group)
+    )
+
+
 alt_min = 300
 alt_max = 20_000
+
 ds_data = (ds_data
-           .pipe(dead_time_correction, 0)
-           .pipe(remove_background, [28_000, 30_000])
-           .mean("time")
-           .pipe(groupby_nbins, n_bins_group)
-           # .rolling(rangebin=n_bins_mean, center=True)
-           # .mean()
-           # .dropna("rangebin")
+           .pipe(pre_processor, 50, process, True)
            .sel(rangebin=slice(alt_min, alt_max)))
 
 df_temp_pressure = (df_temp_pressure
@@ -39,12 +44,12 @@ df_temp_pressure = (df_temp_pressure
 
 df_temp_pressure = df_temp_pressure[(df_temp_pressure.Altitude >= alt_min) & (df_temp_pressure.Altitude <= alt_max)]
 
-raman = Raman(ds_data.isel(rangebin=slice(n_bins_mean, 9999)),
+raman = Raman(ds_data,
               wavelengths[0],
               wavelengths[1],
               1.8,
-              df_temp_pressure["Pressure"].to_numpy()[n_bins_mean:],
-              df_temp_pressure["Temperature"].to_numpy()[n_bins_mean:],
+              df_temp_pressure["Pressure"].to_numpy(),
+              df_temp_pressure["Temperature"].to_numpy(),
               [10000, 12000])
 
 smoothers = {
