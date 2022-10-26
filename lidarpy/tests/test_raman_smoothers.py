@@ -8,14 +8,21 @@ from lidarpy.data.raman_smoothers import get_savgol_filter, get_gaussian_filter
 from scipy.signal import savgol_filter
 from scipy.ndimage import gaussian_filter
 
+'''
+
+https://opg.optica.org/oe/fulltext.cfm?uri=oe-24-19-21497&id=349873
+
+'''
+
+
 df_temp_pressure = pd.read_csv("data/netcdf/earlinet_pres_temp.txt", " ")
 ds_solution = xr.open_dataset("data/netcdf/earlinet_solution.nc")
 ds_data = xr.open_dataset("data/netcdf/earlinet_data.nc")
 
 wavelengths = [355, 387]  # 355 e 387 ou 532 e 608
 
-n_bins_mean = 5
-n_bins_group = 4
+n_bins_mean = 3
+n_bins_group = 1
 alt_min = 300
 alt_max = 20_000
 ds_data = (ds_data
@@ -48,13 +55,14 @@ raman = Raman(ds_data.isel(rangebin=slice(n_bins_mean, 9999)),
               [10000, 12000])
 
 smoothers = {
-    # "SG2_W5": get_savgol_filter(5, 2),
+    "SG2_W5": get_savgol_filter(5, 2),
     # "SG2_W7": get_savgol_filter(7, 2),
     # "SG2_W9": get_savgol_filter(9, 2),
-    # "SG2_W11": get_savgol_filter(11, 2),
-    # "SG2_W21": get_savgol_filter(21, 2),
+    "SG2_W11": get_savgol_filter(11, 2),
+    "SG2_W15": get_savgol_filter(15, 2),
+    "SG2_W21": get_savgol_filter(21, 2),
     # "SG2_W23": get_savgol_filter(23, 2),
-    "SG2_W31": get_savgol_filter(31, 2),
+    # "SG2_W31": get_savgol_filter(31, 2),
     # "SG3_W5": get_savgol_filter(5, 3),
     # "SG3_W7": get_savgol_filter(7, 3),
     # "SG3_W9": get_savgol_filter(9, 3),
@@ -85,6 +93,7 @@ beta_smoothers = {
     "SG2_W7": get_beta_savgol(7, 2),
     "SG2_W9": get_beta_savgol(9, 2),
     "SG2_W11": get_beta_savgol(11, 2),
+    "SG2_W15": get_beta_savgol(15, 2),
     "SG2_W21": get_beta_savgol(21, 2),
     "SG2_W23": get_beta_savgol(23, 2),
     "SG2_W31": get_beta_savgol(31, 2),
@@ -98,7 +107,7 @@ beta_smoothers = {
     "G0.99": get_beta_gaussian(0.99),
 }
 
-max_range = 6000
+max_range = 1750
 indx_sol = (ds_solution.coords["rangebin"].data < max_range)
 
 for window in [5, 7, 9, 11, 13, 15]:
