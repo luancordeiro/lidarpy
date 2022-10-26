@@ -1,5 +1,5 @@
 import numpy as np
-from lidarpy.util.constants import Constants
+from lidarpy.data.constants import Constants
 
 
 class AlphaBetaMolecular:
