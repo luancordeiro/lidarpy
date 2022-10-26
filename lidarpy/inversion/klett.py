@@ -79,7 +79,8 @@ class Klett:
         if (mc_iter is not None) & (tau_lims is None):
             raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
         self.signal = filter_wavelength(lidar_data, wavelength, pc)
-        self.uncertainty = filter_wavelength(lidar_data, wavelength, pc, "sigma")
+        self.uncertainty = (filter_wavelength(lidar_data, wavelength, pc, "sigma")
+                            if "sigma" in lidar_data.variables else None)
         self.rangebin = lidar_data.coords["rangebin"].data
         self.ref = z_ref
         self._calib_strategy = self._calib_strategies[correct_noise]

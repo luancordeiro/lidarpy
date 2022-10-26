@@ -37,8 +37,10 @@ class Raman:
             raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
         self.elastic_signal = filter_wavelength(lidar_data, lidar_wavelength, pc)
         self.inelastic_signal = filter_wavelength(lidar_data, raman_wavelength, pc)
-        self.elastic_uncertainty = filter_wavelength(lidar_data, lidar_wavelength, pc, "sigma")
-        self.inelastic_uncertainty = filter_wavelength(lidar_data, raman_wavelength, pc, "sigma")
+        self.elastic_uncertainty = (filter_wavelength(lidar_data, lidar_wavelength, pc, "sigma")
+                                    if "sigma" in lidar_data.variables else None)
+        self.inelastic_uncertainty = (filter_wavelength(lidar_data, raman_wavelength, pc, "sigma")
+                                      if "sigma" in lidar_data.variables else None)
         self.rangebin = lidar_data.coords["rangebin"].data
         self.p_air = p_air
         self.t_air = t_air

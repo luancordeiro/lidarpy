@@ -21,8 +21,8 @@ ds_data = xr.open_dataset("data/netcdf/earlinet_data.nc")
 
 wavelengths = [355, 387]  # 355 e 387 ou 532 e 608
 
-n_bins_mean = 3
-n_bins_group = 1
+n_bins_mean = 7
+n_bins_group = 4
 alt_min = 300
 alt_max = 20_000
 ds_data = (ds_data
@@ -56,21 +56,21 @@ raman = Raman(ds_data.isel(rangebin=slice(n_bins_mean, 9999)),
 
 smoothers = {
     "SG2_W5": get_savgol_filter(5, 2),
-    # "SG2_W7": get_savgol_filter(7, 2),
+    "SG2_W7": get_savgol_filter(7, 2),
     # "SG2_W9": get_savgol_filter(9, 2),
-    "SG2_W11": get_savgol_filter(11, 2),
-    "SG2_W15": get_savgol_filter(15, 2),
+    # "SG2_W11": get_savgol_filter(11, 2),
+    # "SG2_W15": get_savgol_filter(15, 2),
     "SG2_W21": get_savgol_filter(21, 2),
-    # "SG2_W23": get_savgol_filter(23, 2),
-    # "SG2_W31": get_savgol_filter(31, 2),
+    "SG2_W23": get_savgol_filter(23, 2),
+    "SG2_W31": get_savgol_filter(31, 2),
     # "SG3_W5": get_savgol_filter(5, 3),
     # "SG3_W7": get_savgol_filter(7, 3),
     # "SG3_W9": get_savgol_filter(9, 3),
-    # "G0.5": get_gaussian_filter(0.5),
-    # "G0.7": get_gaussian_filter(0.7),
+    "G0.5": get_gaussian_filter(0.5),
+    "G0.7": get_gaussian_filter(0.7),
     # "G0.9": get_gaussian_filter(0.9),
     # "G0.95": get_gaussian_filter(0.95),
-    # "G0.99": get_gaussian_filter(0.99),
+    "G0.99": get_gaussian_filter(0.99),
 }
 
 
@@ -107,7 +107,7 @@ beta_smoothers = {
     "G0.99": get_beta_gaussian(0.99),
 }
 
-max_range = 1750
+max_range = 6000
 indx_sol = (ds_solution.coords["rangebin"].data < max_range)
 
 for window in [5, 7, 9, 11, 13, 15]:

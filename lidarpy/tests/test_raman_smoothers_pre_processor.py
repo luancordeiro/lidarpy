@@ -49,8 +49,7 @@ raman = Raman(ds_data.isel(rangebin=slice(n_bins_mean, 9999)),
               1.8,
               df_temp_pressure["Pressure"].to_numpy()[n_bins_mean:],
               df_temp_pressure["Temperature"].to_numpy()[n_bins_mean:],
-              [10000, 12000],
-              ds_data.sel(channel="387_1").sigma.data)
+              [10000, 12000])
 
 smoothers = {
     # "SG2_W5": get_savgol_filter(5, 2),
