@@ -79,6 +79,7 @@ class Klett:
         if (mc_iter is not None) & (tau_lims is None):
             raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
         self.signal = filter_wavelength(lidar_data, wavelength, pc)
+        self.uncertainty = filter_wavelength(lidar_data, wavelength, pc, "sigma")
         self.rangebin = lidar_data.coords["rangebin"].data
         self.ref = z_ref
         self._calib_strategy = self._calib_strategies[correct_noise]
@@ -162,7 +163,7 @@ class Klett:
         self._mc_bool = False
 
         original_signal = self.signal.copy()
-        signals = np.random.poisson(self.signal, size=(self.mc_iter, len(self.signal)))
+        signals = np.random.randn(self.mc_iter, len(self.signal)) * self.uncertainty + self.signal
 
         betas = []
         alphas = []

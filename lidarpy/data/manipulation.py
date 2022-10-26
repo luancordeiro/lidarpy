@@ -187,10 +187,10 @@ def dead_time_correction(lidar_data: xr.Dataset, dead_time: float):
     return lidar_data
 
 
-def filter_wavelength(lidar_data: xr.Dataset, wavelength: int, pc: bool):
+def filter_wavelength(lidar_data: xr.Dataset, wavelength: int, pc: bool, variable: str = "phy"):
     if "channel" in lidar_data.dims:
-        signal = lidar_data.phy.sel(channel=f"{wavelength}_{int(pc)}").data
+        signal = lidar_data[variable].sel(channel=f"{wavelength}_{int(pc)}").data
     else:
-        signal = lidar_data.phy.data
+        signal = lidar_data[variable].data
 
     return signal

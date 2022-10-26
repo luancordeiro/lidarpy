@@ -31,13 +31,14 @@ class Raman:
     _mc_bool = True
 
     def __init__(self, lidar_data: xr.Dataset, lidar_wavelength: int, raman_wavelength: int, angstrom_coeff: float,
-                 p_air: np.array, t_air: np.array, z_ref: list, inelastic_uncertainty: np.array = None, pc: bool = True,
-                 co2ppmv: int = 392, mc_iter: int = None, tau_ind: np.array = None):
+                 p_air: np.array, t_air: np.array, z_ref: list, pc: bool = True, co2ppmv: int = 392,
+                 mc_iter: int = None, tau_ind: np.array = None):
         if (mc_iter is not None) and (tau_ind is None):
             raise Exception("Para realizar mc, é necessário add mc_iter e tau_ind")
         self.elastic_signal = filter_wavelength(lidar_data, lidar_wavelength, pc)
         self.inelastic_signal = filter_wavelength(lidar_data, raman_wavelength, pc)
-        self.inelastic_uncertainty = inelastic_uncertainty
+        self.elastic_uncertainty = filter_wavelength(lidar_data, lidar_wavelength, pc, "sigma")
+        self.inelastic_uncertainty = filter_wavelength(lidar_data, raman_wavelength, pc, "sigma")
         self.rangebin = lidar_data.coords["rangebin"].data
         self.p_air = p_air
         self.t_air = t_air
@@ -154,8 +155,10 @@ class Raman:
         original_elastic_signal = self.elastic_signal.copy()
         original_inelastic_signal = self.inelastic_signal.copy()
 
-        elastic_signals = np.random.poisson(self.elastic_signal, size=(self.mc_iter, len(self.elastic_signal)))
-        inelastic_signals = np.random.poisson(self.inelastic_signal, size=(self.mc_iter, len(self.inelastic_signal)))
+        elastic_signals = (np.random.randn(self.mc_iter, len(self.elastic_signal)) * self.elastic_uncertainty
+                           + self.elastic_signal)
+        inelastic_signals = (np.random.randn(self.mc_iter, len(self.inelastic_signal)) * self.inelastic_uncertainty
+                             + self.inelastic_signal)
 
         alphas = []
         betas = []
