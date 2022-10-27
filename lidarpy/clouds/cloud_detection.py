@@ -13,16 +13,17 @@ def _datevec(ordinal):
 
 
 class CloudFinder:
-    _alt_max = 25000
+    _z_max = 25000
 
-    def __init__(self, lidar_data: xr.Dataset, wavelength: int, ref_min: int, window: int, jdz: float,
+    def __init__(self, lidar_data: xr.Dataset, wavelength: int, z_min: int, window: int, jdz: float,
                  pc: bool = True):
         self._original_data = (lidar_data.sel(channel=f"{wavelength}_{int(pc)}")
                                if "channel" in lidar_data.dims else lidar_data)
-        ref = z_finder(lidar_data.coords["rangebin"].data, self._alt_max)
-        self.z = lidar_data.coords["rangebin"][ref_min:ref].data
-        self.signal = self._original_data.phy.data[ref_min:ref]
-        self.sigma = self._original_data.sigma.data[ref_min:ref]
+        ref_min = z_finder(lidar_data.coords["rangebin"].data, z_min)
+        ref_max = z_finder(lidar_data.coords["rangebin"].data, self._z_max)
+        self.z = lidar_data.coords["rangebin"][ref_min:ref_max].data
+        self.signal = self._original_data.phy.data[ref_min:ref_max]
+        self.sigma = self._original_data.sigma.data[ref_min:ref_max]
         self.window = window
         self.jdz = jdz
 

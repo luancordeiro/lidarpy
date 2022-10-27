@@ -9,7 +9,7 @@ import xarray as xr
 
 directory = "data/binary"
 files = [file for file in os.listdir(directory) if file.startswith("RM")]
-ds = GetData(directory, files[:50]).get_xarray().isel(channel=[1, 3])
+ds = GetData(directory, files[:30]).get_xarray().isel(channel=[1, 3])
 
 original_data = ds.copy()
 
@@ -18,7 +18,7 @@ original_data = (
     .pipe(remove_background, [original_data.coords["rangebin"][-1] - 3000, original_data.coords["rangebin"][-1]])
     .pipe(dead_time_correction, 0.004)
     .mean("time")
-    .pipe(get_uncertainty, 355, 600 * 50)
+    .pipe(get_uncertainty, 355, 600 * 30)
 )
 
 
@@ -36,8 +36,10 @@ ds = ds.pipe(pre_processor, 30, process, True)
 ind_min = int(5000 // 7.5)
 ind_max = int(20_000 // 7.5)
 
-plt.plot(ds.coords["rangebin"].data[ind_min:ind_max], ds.isel(channel=0).sigma.data[ind_min:ind_max], "-", label="MC")
-plt.plot(original_data.coords["rangebin"].data[ind_min:ind_max], original_data.sigma.data[ind_min:ind_max], "--", label="diego")
+plt.plot(ds.coords["rangebin"].data[ind_min:ind_max], ds.isel(channel=0).sigma.data[ind_min:ind_max], "-",
+         label="MC")
+plt.plot(original_data.coords["rangebin"].data[ind_min:ind_max], original_data.sigma.data[ind_min:ind_max], "--",
+         label="diego")
 plt.legend()
 plt.grid()
 plt.show()
@@ -50,20 +52,20 @@ plt.show()
 
 lidar_data = ds.sel(channel="355_1", rangebin=slice(7.5, 30_001))
 
-cloud = CloudFinder(lidar_data.rolling({"rangebin": 21}, center=True).mean(),
+cloud = CloudFinder(lidar_data,
                     355,
-                    378,
+                    3000,
                     5,
                     735036.004918982)
+
+cloud_diego = CloudFinder(original_data,
+                          355,
+                          3000,
+                          5,
+                          735036.004918982)
+
 z_base, z_top, *_ = cloud.fit()
-
-cloud = CloudFinder(original_data.rolling({"rangebin": 21}, center=True).mean(),
-                    355,
-                    378,
-                    5,
-                    735036.004918982)
-
-z_base_diego, z_top_diego, *_ = cloud.fit()
+z_base_diego, z_top_diego, *_ = cloud_diego.fit()
 
 print("z_base", z_base)
 print("z_top", z_top)

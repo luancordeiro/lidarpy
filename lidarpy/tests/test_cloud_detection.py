@@ -20,7 +20,7 @@ else:
     lidar_data = (
         data
         .get_xarray()
-        .pipe(remove_background, [75_000, 80_000])
+        .pipe(remove_background, [120_000, 125_000])
         .pipe(dead_time_correction, 0.004)
         .mean("time")
         .pipe(get_uncertainty, 355, 600 * 15)
@@ -44,7 +44,7 @@ plt.xlabel("Altitude (m)")
 plt.grid()
 plt.show()
 
-cloud = CloudFinder(lidar_data, 355, 378, 5, jdz)
+cloud = CloudFinder(lidar_data, 355, 3000, 5, jdz)
 z_base, z_top, z_max_capa, nfz_base, nfz_top, nfz_max_capa = cloud.fit()
 
 print("z_base", z_base)
