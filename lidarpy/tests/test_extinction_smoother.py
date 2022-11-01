@@ -5,7 +5,7 @@ from lidarpy.inversion.raman import Raman2
 from lidarpy.plot.plotter import compare_w_sol
 from lidarpy.data.manipulation import groupby_nbins
 from lidarpy.data.manipulation import remove_background, dead_time_correction, get_uncertainty
-from lidarpy.data.raman_smoothers import get_savgol_filter, get_beta_savgol, diff_without_smooth, get_savgol_filter2, get_savgol_filter3
+from lidarpy.data.raman_smoothers import get_savgol_filter, get_beta_savgol
 
 df_temp_pressure = pd.read_csv("data/netcdf/earlinet_pres_temp.txt", " ")
 ds_solution = xr.open_dataset("data/netcdf/earlinet_solution.nc")
@@ -13,8 +13,8 @@ ds_data = xr.open_dataset("data/netcdf/earlinet_data.nc")
 
 wavelengths = [355, 387]  # 355 e 387 ou 532 e 608
 
-n_bins_mean = 0
-n_bins_group = 1
+n_bins_mean = 1
+n_bins_group = 4
 alt_min = 300
 alt_max = 20_000
 ds_data = (ds_data
@@ -22,8 +22,8 @@ ds_data = (ds_data
            .pipe(remove_background, [28_000, 30_000])
            .mean("time")
            .pipe(groupby_nbins, n_bins_group)
-           # .rolling(rangebin=n_bins_mean, center=True)
-           # .mean()
+           .rolling(rangebin=n_bins_mean, center=True)
+           .mean()
            .dropna("rangebin")
            .sel(rangebin=slice(alt_min, alt_max)))
 
@@ -32,8 +32,8 @@ df_temp_pressure = (df_temp_pressure
                     .assign(Pressure=lambda x: x.Pressure * 100)
                     .groupby(df_temp_pressure.index // n_bins_group)
                     .mean()
-                    # .rolling(n_bins_mean, center=True)
-                    # .mean()
+                    .rolling(n_bins_mean, center=True)
+                    .mean()
                     .dropna())
 
 df_temp_pressure = df_temp_pressure[(df_temp_pressure.Altitude >= alt_min) & (df_temp_pressure.Altitude <= alt_max)]
@@ -46,29 +46,16 @@ raman = Raman2(ds_data.isel(rangebin=slice(n_bins_mean, 9999)),
                df_temp_pressure["Temperature"].to_numpy()[n_bins_mean:],
                [10000, 12000])
 
-# alpha, beta, lr = raman.fit(
-#     diff_window=21,
-#     diff_strategy=get_savgol_filter(61, 2),
-#     beta_smoother=get_beta_savgol(61, 2),
-#     # extinction_smoother=get_beta_savgol(61, 2)
-# )
+# alpha, beta, lr = raman.fit(diff_window=5,
+#                             diff_strategy=get_savgol_filter(21, 2),
+#                             beta_smoother=get_beta_savgol(21, 2))
 
-# alpha, beta, lr = raman.fit(diff_window=5)
-
-# alpha, beta, lr = raman.fit(diff_strategy=diff_without_smooth)
-
-# alpha, beta, lr = raman.fit(diff_strategy=diff_without_smooth, extinction_smoother=get_beta_savgol(21, 2))
-
-# alpha, beta, lr = raman.fit(diff_strategy=get_savgol_filter2(21, 2))
-
-# alpha, beta, lr = raman.fit(diff_window=7, extinction_smoother=get_beta_savgol(21, 2))
-
-alpha, beta, lr = raman.fit(diff_strategy=get_savgol_filter3(51, 2))
+alpha, beta, lr = raman.fit(diff_window=9,
+                            extinction_smoother=get_beta_savgol(21, 3))
 
 max_range = 6000
 
 indx_sol = (ds_solution.coords["rangebin"].data < max_range)
-
 
 compare_w_sol(raman.rangebin[raman.rangebin < max_range],
               alpha[raman.rangebin < max_range],
@@ -76,16 +63,16 @@ compare_w_sol(raman.rangebin[raman.rangebin < max_range],
               ds_solution.sel(channel=f"{wavelengths[0]}_1").extinction.data[indx_sol],
               0)
 
-# compare_w_sol(raman.rangebin[raman.rangebin < max_range],
-#               beta[raman.rangebin < max_range],
-#               ds_solution.coords["rangebin"][indx_sol],
-#               ds_solution.sel(channel=f"{wavelengths[0]}_1").backscatter.data[indx_sol],
-#               1)
-#
-# compare_w_sol(raman.rangebin[raman.rangebin < max_range],
-#               lr[raman.rangebin < max_range],
-#               ds_solution.coords["rangebin"][indx_sol],
-#               ds_solution.sel(channel=f"{wavelengths[0]}_1").lidar_ratio.data[indx_sol],
-#               2)
+compare_w_sol(raman.rangebin[raman.rangebin < max_range],
+              beta[raman.rangebin < max_range],
+              ds_solution.coords["rangebin"][indx_sol],
+              ds_solution.sel(channel=f"{wavelengths[0]}_1").backscatter.data[indx_sol],
+              1)
+
+compare_w_sol(raman.rangebin[raman.rangebin < max_range],
+              lr[raman.rangebin < max_range],
+              ds_solution.coords["rangebin"][indx_sol],
+              ds_solution.sel(channel=f"{wavelengths[0]}_1").lidar_ratio.data[indx_sol],
+              2)
 
 print(lr[raman.rangebin < max_range].mean())

@@ -149,6 +149,47 @@ def diff_linear_regression(num_density: np.array, ranged_corrected_signal: np.ar
     return (dif_num_density / num_density) - (dif_ranged_corrected_signal / ranged_corrected_signal)
 
 
+def diff_without_smooth(num_density: np.array, ranged_corrected_signal: np.array, rangebin: np.array,
+                        diff_window: int, inelastic_uncertainty=None):
+
+    weights = None if inelastic_uncertainty is None else 1 / (inelastic_uncertainty * rangebin ** 2) ** 2
+
+    dif_ranged_corrected_signal = np.gradient(ranged_corrected_signal) / np.gradient(rangebin)
+    dif_num_density = np.gradient(num_density) / np.gradient(rangebin)
+    return (dif_num_density / num_density) - (dif_ranged_corrected_signal / ranged_corrected_signal)
+
+
+def get_savgol_filter2(window_length, polyorder):
+    def diff_savgol_filter(num_density: np.array, ranged_corrected_signal: np.array, rangebin: np.array,
+                           diff_window: int, inelastic_uncertainty=None):
+
+        num_density = savgol_filter(num_density, window_length, polyorder)
+        ranged_corrected_signal = savgol_filter(ranged_corrected_signal, window_length, polyorder)
+
+        weights = None if inelastic_uncertainty is None else 1 / (inelastic_uncertainty * rangebin ** 2) ** 2
+
+        dif_ranged_corrected_signal = np.gradient(ranged_corrected_signal) / np.gradient(rangebin)
+        dif_num_density = np.gradient(num_density) / np.gradient(rangebin)
+        return (dif_num_density / num_density) - (dif_ranged_corrected_signal / ranged_corrected_signal)
+
+    return diff_savgol_filter
+
+
+def get_savgol_filter3(window_length, polyorder):
+    def diff_savgol_filter(num_density: np.array, ranged_corrected_signal: np.array, rangebin: np.array,
+                           diff_window: int, inelastic_uncertainty=None):
+
+        weights = None if inelastic_uncertainty is None else 1 / (inelastic_uncertainty * rangebin ** 2) ** 2
+
+        delta = rangebin[1] - rangebin[0]
+        dif_num_density = savgol_filter(num_density, window_length, polyorder, 1, delta)
+        dif_ranged_corrected_signal = savgol_filter(ranged_corrected_signal, window_length, polyorder, 1, delta)
+
+        return (dif_num_density / num_density) - (dif_ranged_corrected_signal / ranged_corrected_signal)
+
+    return diff_savgol_filter
+
+
 def get_savgol_filter(window_length, polyorder):
     def diff_savgol_filter(num_density: np.array, ranged_corrected_signal: np.array, rangebin: np.array,
                            diff_window: int, inelastic_uncertainty=None):
