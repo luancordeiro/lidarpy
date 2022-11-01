@@ -12,8 +12,8 @@ ds_solution = xr.open_dataset("data/netcdf/earlinet_solution.nc")
 ds_data = xr.open_dataset("data/netcdf/earlinet_data.nc")
 
 wavelengths = [355, 387]  # 355 e 387 ou 532 e 608
+n_bins_mean = 7
 n_bins_group = 4
-n_bins_mean = 5
 
 
 def process(lidar_data):
@@ -56,9 +56,9 @@ smoothers = {
     # "SG2_W7": get_savgol_filter(7, 2),
     # "SG2_W9": get_savgol_filter(9, 2),
     # "SG2_W11": get_savgol_filter(11, 2),
-    # "SG2_W21": get_savgol_filter(21, 2),
+    "SG2_W21": get_savgol_filter(21, 2),
     # "SG2_W23": get_savgol_filter(23, 2),
-    "SG2_W31": get_savgol_filter(31, 2),
+    # "SG2_W31": get_savgol_filter(31, 2),
     # "SG3_W5": get_savgol_filter(5, 3),
     # "SG3_W7": get_savgol_filter(7, 3),
     # "SG3_W9": get_savgol_filter(9, 3),

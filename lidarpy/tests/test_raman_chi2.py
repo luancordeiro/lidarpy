@@ -4,8 +4,8 @@ import pandas as pd
 from lidarpy.inversion.raman import Raman
 from lidarpy.plot.plotter import compare_w_sol
 from lidarpy.data.manipulation import groupby_nbins
-from lidarpy.data.manipulation import remove_background, dead_time_correction, get_uncertainty
-from lidarpy.data.raman_smoothers import get_savgol_filter, get_beta_savgol
+from lidarpy.data.manipulation import remove_background, dead_time_correction
+from lidarpy.data.raman_smoothers import diff_chi2_test, diff_linear_regression
 
 df_temp_pressure = pd.read_csv("data/netcdf/earlinet_pres_temp.txt", " ")
 ds_solution = xr.open_dataset("data/netcdf/earlinet_solution.nc")
@@ -46,11 +46,10 @@ raman = Raman(ds_data.isel(rangebin=slice(n_bins_mean, 9999)),
               df_temp_pressure["Temperature"].to_numpy()[n_bins_mean:],
               [10000, 12000])
 
-# alpha, beta, lr = raman.fit(diff_window=5,
-#                             diff_strategy=get_savgol_filter(21, 2),
-#                             beta_smoother=get_beta_savgol(21, 2))
-
-alpha, beta, lr = raman.fit(diff_window=5)
+alpha, beta, lr = raman.fit(
+    diff_window=5,
+    diff_strategy=diff_chi2_test
+)
 
 max_range = 6000
 
