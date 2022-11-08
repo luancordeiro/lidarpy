@@ -6,7 +6,7 @@ import os
 import matplotlib.pyplot as plt
 
 directory = "data/binary"
-files = [file for file in os.listdir(directory) if file.startswith("RM")]
+files = [file for file in os.listdir(directory) if file.startswith("RM")][:80]
 lidar_data = GetData(directory, files).get_xarray().isel(channel=1)
 
 original_data = lidar_data.copy()
@@ -17,7 +17,7 @@ original_data = (
     .pipe(dead_time_correction, 0.004)
     .mean("time")
     .pipe(get_uncertainty, 355, 600 * len(files))
-    .sel(rangebin=slice(5000, 30_001))
+    .sel(rangebin=slice(1000, 30_001))
 )
 
 
@@ -30,7 +30,7 @@ def process(lidar_data_):
     )
 
 
-lidar_data = lidar_data.pipe(pre_processor, 500, process, True).sel(rangebin=slice(5000, 30_001))
+lidar_data = lidar_data.pipe(pre_processor, 500, process, True).sel(rangebin=slice(1000, 30_001))
 
 plt.plot(lidar_data.coords["rangebin"].data, lidar_data.sigma.data, "-",
          label="MC")
@@ -63,6 +63,8 @@ z_base_diego, z_top_diego, *_ = cloud_diego.fit()
 
 print("z_base", z_base)
 print("z_top", z_top)
+print("z_base_diego", z_base_diego)
+print("z_top_diego", z_top_diego)
 
 rcs = (lidar_data.phy * lidar_data.coords["rangebin"] ** 2)
 indx_base = z_finder(lidar_data.coords["rangebin"].data, z_base)

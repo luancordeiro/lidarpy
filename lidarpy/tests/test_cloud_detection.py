@@ -14,19 +14,17 @@ if open_diego_data:
     sigma = df["3"].to_numpy()
 else:
     directory = "data/binary"
-    files = [file for file in os.listdir(directory) if file.startswith("RM")]
+    files = [file for file in os.listdir(directory) if file.startswith("RM")][:30]
     lidar_data = GetData(directory, files).get_xarray()
 
     def process(ds):
         return (ds
-                .pipe(remove_background, [120_000, 125_000])
+                .pipe(remove_background, [122_000, 125_000])
                 .pipe(dead_time_correction, 0.004)
-                .mean("time"))
+                .mean("time")
+                .pipe(get_uncertainty, 355, 600 * len(files)))
 
-    lidar_data = (
-        lidar_data
-        .pipe(process)
-    )
+    lidar_data = lidar_data.pipe(process)
 
     lidar_data = lidar_data.sel(channel="355_1", rangebin=slice(7.5, 30_001))
 

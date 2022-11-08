@@ -20,7 +20,7 @@ def process(lidar_data_):
         .pipe(remove_background, [lidar_data.coords["rangebin"][-1] - 3000, lidar_data.coords["rangebin"][-1]])
         .pipe(dead_time_correction, 0.004)
         .mean("time")
-        .rolling(rangebin=5, center=True)
+        .rolling(rangebin=9, center=True)
         .mean()
     )
 
