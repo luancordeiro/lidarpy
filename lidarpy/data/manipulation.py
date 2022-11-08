@@ -78,6 +78,30 @@ def molecular_model(lidar_data: xr.Dataset, wavelength, p_air, t_air, alt_ref, c
     return np.exp(reg[0] * np.log(model) + reg[1])
 
 
+def molecular_raman_model(lidar_data: xr.Dataset, lidar_wavelength, raman_wavelength, p_air, t_air, alt_ref,
+                          co2ppmv=392, pc=True) -> np.array:
+    alpha_lidar_mol, *_ = AlphaBetaMolecular(p_air, t_air, lidar_wavelength, co2ppmv).get_params()
+
+    alpha_raman_mol, *_ = AlphaBetaMolecular(p_air, t_air, raman_wavelength, co2ppmv).get_params()
+
+    rangebin = lidar_data.coords["rangebin"].data
+
+    scatterer_numerical_density = 78.08e-2 * p_air / (1.380649e-23 * t_air)
+
+    model = (scatterer_numerical_density * np.exp(-cumtrapz(rangebin, alpha_lidar_mol + alpha_raman_mol, initial=0))
+             / rangebin ** 2)
+
+    ref = z_finder(rangebin, alt_ref)
+
+    signal = filter_wavelength(lidar_data, raman_wavelength, pc)
+
+    reg = np.polyfit(np.log(model[ref[0]:ref[1]]),
+                     np.log(signal[ref[0]:ref[1]]),
+                     1)
+
+    return np.exp(reg[0] * np.log(model) + reg[1])
+
+
 def remove_background_fit(lidar_data: xr.Dataset, wavelength, p_air, t_air, alt_ref, co2ppmv=392,
                           pc=True) -> xr.Dataset:
     data = lidar_data.copy()

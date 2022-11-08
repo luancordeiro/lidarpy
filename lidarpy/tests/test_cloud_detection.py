@@ -15,7 +15,7 @@ if open_diego_data:
 else:
     directory = "data/binary"
     files = [file for file in os.listdir(directory) if file.startswith("RM")]
-    data = GetData(directory, files[:15])
+    data = GetData(directory, files)
 
     lidar_data = (
         data
