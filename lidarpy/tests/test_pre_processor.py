@@ -4,21 +4,20 @@ from lidarpy.data.pre_processor import pre_processor
 from lidarpy.clouds.cloud_detection import CloudFinder
 import os
 import matplotlib.pyplot as plt
-import pandas as pd
-import xarray as xr
 
 directory = "data/binary"
 files = [file for file in os.listdir(directory) if file.startswith("RM")]
-ds = GetData(directory, files[:30]).get_xarray().isel(channel=[1, 3])
+lidar_data = GetData(directory, files).get_xarray().isel(channel=1)
 
-original_data = ds.copy()
+original_data = lidar_data.copy()
 
 original_data = (
     original_data
     .pipe(remove_background, [original_data.coords["rangebin"][-1] - 3000, original_data.coords["rangebin"][-1]])
     .pipe(dead_time_correction, 0.004)
     .mean("time")
-    .pipe(get_uncertainty, 355, 600 * 30)
+    .pipe(get_uncertainty, 355, 600 * len(files))
+    .sel(rangebin=slice(5000, 30_001))
 )
 
 
@@ -31,26 +30,21 @@ def process(lidar_data_):
     )
 
 
-ds = ds.pipe(pre_processor, 30, process, True)
+lidar_data = lidar_data.pipe(pre_processor, 500, process, True).sel(rangebin=slice(5000, 30_001))
 
-ind_min = int(5000 // 7.5)
-ind_max = int(20_000 // 7.5)
-
-plt.plot(ds.coords["rangebin"].data[ind_min:ind_max], ds.isel(channel=0).sigma.data[ind_min:ind_max], "-",
+plt.plot(lidar_data.coords["rangebin"].data, lidar_data.sigma.data, "-",
          label="MC")
-plt.plot(original_data.coords["rangebin"].data[ind_min:ind_max], original_data.sigma.data[ind_min:ind_max], "--",
+plt.plot(original_data.coords["rangebin"].data, original_data.sigma.data, "--",
          label="diego")
 plt.legend()
 plt.grid()
 plt.show()
 
-plt.plot(ds.coords["rangebin"].data[ind_min:ind_max],
-         (ds.isel(channel=0).sigma.data - original_data.sigma.data)[ind_min:ind_max] ** 2,
+plt.plot(lidar_data.coords["rangebin"].data,
+         (lidar_data.sigma.data - original_data.sigma.data) ** 2,
          "-")
 plt.grid()
 plt.show()
-
-lidar_data = ds.sel(channel="355_1", rangebin=slice(7.5, 30_001))
 
 cloud = CloudFinder(lidar_data,
                     355,

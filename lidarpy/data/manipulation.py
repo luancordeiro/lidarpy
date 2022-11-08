@@ -193,7 +193,10 @@ def get_uncertainty(lidar_data: xr.Dataset, wavelength: int, nshoots: int, pc: b
     signal = filter_wavelength(lidar_data, wavelength, pc)
     t = nshoots / 20e6
     n = t * signal * 1e6
-    n_bg = t * lidar_data.sel(channel=f"{wavelength}_{int(pc)}").background.data * 1e6
+    if "wavelength" in lidar_data.dims:
+        n_bg = t * lidar_data.sel(channel=f"{wavelength}_{int(pc)}").background.data * 1e6
+    else:
+        n_bg = t * lidar_data.background.data * 1e6
     sigma_n = ((n + n_bg.reshape(-1, 1) * np.ones(n.shape)) ** 0.5).reshape(-1)
     return lidar_data.assign(sigma=xr.DataArray(sigma_n * 1e-6 / t, dims=["rangebin"]))
 

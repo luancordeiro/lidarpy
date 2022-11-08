@@ -15,15 +15,17 @@ if open_diego_data:
 else:
     directory = "data/binary"
     files = [file for file in os.listdir(directory) if file.startswith("RM")]
-    data = GetData(directory, files)
+    lidar_data = GetData(directory, files).get_xarray()
+
+    def process(ds):
+        return (ds
+                .pipe(remove_background, [120_000, 125_000])
+                .pipe(dead_time_correction, 0.004)
+                .mean("time"))
 
     lidar_data = (
-        data
-        .get_xarray()
-        .pipe(remove_background, [120_000, 125_000])
-        .pipe(dead_time_correction, 0.004)
-        .mean("time")
-        .pipe(get_uncertainty, 355, 600 * 15)
+        lidar_data
+        .pipe(process)
     )
 
     lidar_data = lidar_data.sel(channel="355_1", rangebin=slice(7.5, 30_001))
