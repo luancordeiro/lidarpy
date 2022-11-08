@@ -1,8 +1,8 @@
 from lidarpy.data.read_binary import GetData
-from lidarpy.data.manipulation import remove_background, atmospheric_interpolation, dead_time_correction
+from lidarpy.data.manipulation import remove_background, atmospheric_interpolation, dead_time_correction, groupby_nbins
 from lidarpy.data.pre_processor import pre_processor
 from lidarpy.inversion.raman_transmittance import GetCod
-from lidarpy.inversion.transmittance import get_cod as get_cod2
+from lidarpy.inversion.transmittance import GetCod as GetCod2
 import os
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -20,13 +20,16 @@ def process(lidar_data_):
         .pipe(remove_background, [lidar_data.coords["rangebin"][-1] - 3000, lidar_data.coords["rangebin"][-1]])
         .pipe(dead_time_correction, 0.004)
         .mean("time")
+        .rolling(rangebin=5, center=True)
+        .mean()
     )
 
 
 ds = (lidar_data
       .isel(channel=[1, 3])
-      .pipe(pre_processor, 300, process, True)
-      .isel(rangebin=slice(500, 3000)))
+      # .pipe(pre_processor, 500, process, True)
+      .pipe(process)
+      .isel(rangebin=slice(500, 2500)))
 
 ds.phy.sel(rangebin=slice(11767.5, 15262.5)).plot(col="channel")
 plt.show()
@@ -41,13 +44,13 @@ cod = GetCod(ds,
              0,
              pressure,
              temperature,
-             mc_iter=300).fit()
+             mc_iter=None).fit()
 print(cod)
 
-tau = get_cod2(ds,
-               [11767.5, 15262.5],
-               355,
-               pressure,
-               temperature)
-
+tau = GetCod2(ds,
+              [11767.5, 15262.5],
+              355,
+              pressure,
+              temperature,
+              mc_iter=None).fit()
 print(tau)

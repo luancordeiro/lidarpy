@@ -95,9 +95,13 @@ def molecular_raman_model(lidar_data: xr.Dataset, lidar_wavelength, raman_wavele
 
     signal = filter_wavelength(lidar_data, raman_wavelength, pc)
 
-    reg = np.polyfit(np.log(model[ref[0]:ref[1]]),
-                     np.log(signal[ref[0]:ref[1]]),
-                     1)
+    model_fit = np.log(model[ref[0]:ref[1]])
+
+    signal_fit = np.log(signal[ref[0]:ref[1]])
+
+    nans = (np.isnan(signal_fit) == False)
+
+    reg = np.polyfit(model_fit[nans], signal_fit[nans], 1)
 
     return np.exp(reg[0] * np.log(model) + reg[1])
 

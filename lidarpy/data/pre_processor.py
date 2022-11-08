@@ -19,11 +19,11 @@ def pre_processor(lidar_data: xr.Dataset, mc_iter: int, process, pc: bool = None
             return (
                 ds
                 .assign(phy=(["rangebin", "channel"], np.mean(processed_data, axis=0)))
-                .assign(sigma=(["rangebin", "channel"], np.std(processed_data, axis=0, ddof=1) / mc_iter ** 0.5))
+                .assign(sigma=(["rangebin", "channel"], np.std(processed_data, axis=0, ddof=1)))
             )
         except:
             return (
                 ds
                 .assign(phy=(ds.dims, np.mean(processed_data, axis=0)))
-                .assign(sigma=(ds.dims, np.std(processed_data, axis=0, ddof=1) / mc_iter ** 0.5))
+                .assign(sigma=(ds.dims, np.std(processed_data, axis=0, ddof=1)))
             )

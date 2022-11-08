@@ -7,71 +7,104 @@ from scipy.integrate import trapz
 from scipy.interpolate import interp1d
 
 
-def get_cod(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p_air: np.ndarray, t_air: np.ndarray,
-            pc=True, co2ppmv: int = 392, fit_delta_z=2000, delta_z=200):
-    signal = filter_wavelength(lidar_data, wavelength, pc)
+class GetCod:
+    _mc_bool = True
 
-    rangebin = lidar_data.coords["rangebin"].data
+    def __init__(self, lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p_air: np.ndarray, t_air: np.ndarray,
+                 pc=True, co2ppmv: int = 392, fit_delta_z=2000, delta_z=200, mc_iter=None):
+        self.lidar_data = lidar_data
+        self.rangebin = lidar_data.coords["rangebin"].data
+        self.wavelength = wavelength
+        self.p_air = p_air
+        self.t_air = t_air
+        self.pc = pc
+        self.co2ppmv = co2ppmv
+        self.fit_ref = [cloud_lims[0] - fit_delta_z - 100, cloud_lims[0] - 100]
+        self.transmittance_ref = z_finder(self.rangebin, cloud_lims[1] + delta_z)
+        self.mc_iter = mc_iter
 
-    fit_ref = [cloud_lims[0] - fit_delta_z - 100, cloud_lims[0] - 100]
+    def fit(self):
+        if (self.mc_iter is not None) & self._mc_bool:
+            return self._mc_fit()
+        molecular_signal = molecular_model(self.lidar_data,
+                                           self.wavelength,
+                                           self.p_air,
+                                           self.t_air,
+                                           self.fit_ref,
+                                           self.co2ppmv)
 
-    transmittance_ref = z_finder(rangebin, cloud_lims[1] + delta_z)
+        molecular_rcs = molecular_signal * self.rangebin ** 2
 
-    molecular_signal = molecular_model(lidar_data,
-                                       wavelength,
-                                       p_air,
-                                       t_air,
-                                       fit_ref,
-                                       co2ppmv)
+        rcs = filter_wavelength(self.lidar_data, self.wavelength, self.pc) * self.rangebin ** 2
 
-    fit_ref = z_finder(rangebin, fit_ref)
+        transmittance_ = (rcs[self.transmittance_ref: self.transmittance_ref + 150]
+                          / molecular_rcs[self.transmittance_ref: self.transmittance_ref + 150])
 
-    molecular_rcs = molecular_signal * rangebin ** 2
+        mean = transmittance_.mean()
 
-    rcs = signal * rangebin ** 2
+        # std = transmittance_.std(ddof=1)
+        # fit_ref = z_finder(self.rangebin, self.fit_ref)
+        # plt.figure(figsize=(12, 5))
+        # plt.plot(self.rangebin, rcs, "b-", label="Lidar profile")
+        # plt.plot(self.rangebin[fit_ref[0]:fit_ref[1]], rcs[fit_ref[0]:fit_ref[1]], "y--", label="Fit region")
+        # # plt.plot(self.z[cloud_lims], rcs[cloud_lims], "b*", label="Cloud lims")
+        # plt.plot(self.rangebin, molecular_rcs, "k-", label="Mol. profile")
+        # plt.plot(self.rangebin[self.transmittance_ref: self.transmittance_ref + 150],
+        #          rcs[self.transmittance_ref: self.transmittance_ref + 150],
+        #          "y*", label="transmittance")
+        # plt.grid()
+        # plt.yscale("log")
+        # plt.legend()
+        # plt.xlabel("altitude (m)")
+        # plt.ylabel("S(z)")
+        # plt.show()
+        #
+        # plt.figure(figsize=(12, 5))
+        # transmittance_z = self.rangebin[self.transmittance_ref: self.transmittance_ref + 150]
+        # plt.plot(transmittance_z, transmittance_)
+        # plt.plot([transmittance_z[0], transmittance_z[-1]], [mean, mean], "k--")
+        # plt.title(f"mean value = {mean.round(4)} +- {std.round(4)}")
+        # plt.xlabel("altitude (m)")
+        # plt.ylabel("Transmittance")
+        # plt.show()
 
-    transmittance_ = (rcs[transmittance_ref: transmittance_ref + 150]
-                      / molecular_rcs[transmittance_ref: transmittance_ref + 150])
+        return -0.5 * np.log(mean)
 
-    mean = transmittance_.mean()
+    def _mc_fit(self):
+        self._mc_bool = False
 
-    std = transmittance_.std(ddof=1)
+        original_ds = self.lidar_data.copy()
+        original_elastic_signal = filter_wavelength(self.lidar_data, self.wavelength, self.pc)
+        elastic_uncertainty = filter_wavelength(self.lidar_data, self.wavelength, self.pc, "sigma")
 
-    plt.figure(figsize=(12, 5))
-    plt.plot(rangebin, rcs, "b-", label="Lidar profile")
-    plt.plot(rangebin[fit_ref[0]:fit_ref[1]], rcs[fit_ref[0]:fit_ref[1]], "y--", label="Fit region")
-    # plt.plot(self.z[cloud_lims], rcs[cloud_lims], "b*", label="Cloud lims")
-    plt.plot(rangebin, molecular_rcs, "k-", label="Mol. profile")
-    plt.plot(rangebin[transmittance_ref: transmittance_ref + 150], rcs[transmittance_ref: transmittance_ref + 150],
-             "y*", label="transmittance")
-    plt.grid()
-    plt.yscale("log")
-    plt.legend()
-    plt.xlabel("altitude (m)")
-    plt.ylabel("S(z)")
-    plt.show()
+        elastic_signals = (np.random.randn(self.mc_iter, len(original_elastic_signal)) * elastic_uncertainty
+                           + original_elastic_signal)
 
-    plt.figure(figsize=(12, 5))
-    transmittance_z = rangebin[transmittance_ref: transmittance_ref + 150]
-    plt.plot(transmittance_z, transmittance_)
-    plt.plot([transmittance_z[0], transmittance_z[-1]], [mean, mean], "k--")
-    plt.title(f"mean value = {mean.round(4)} +- {std.round(4)}")
-    plt.xlabel("altitude (m)")
-    plt.ylabel("Transmittance")
-    plt.show()
+        self.lidar_data = self.lidar_data.sel(channel=f"{self.wavelength}_{int(self.pc)}")
 
-    return -0.5 * np.log(mean)
+        taus = []
+        for elastic_signal in elastic_signals:
+            self.lidar_data.phy.data = elastic_signal
+            taus.append(self.fit())
+
+        self.cod = np.mean(taus, axis=0)
+        self.cod_std = np.std(taus, ddof=1, axis=0)
+
+        self.lidar_data = original_ds
+        self._mc_bool = True
+
+        return self.cod, self.cod_std
 
 
 def get_lidar_ratio(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p_air: np.ndarray, t_air: np.ndarray,
                     z_ref: list, pc: bool = True, co2ppmv: int = 392, correct_noise: bool = True):
-    tau_transmittance = get_cod(lidar_data,
-                                cloud_lims,
-                                wavelength,
-                                p_air,
-                                t_air,
-                                pc,
-                                co2ppmv)
+    tau_transmittance = GetCod(lidar_data,
+                               cloud_lims,
+                               wavelength,
+                               p_air,
+                               t_air,
+                               pc,
+                               co2ppmv).fit()
 
     lidar_ratios = np.arange(5, 75, 5)
 

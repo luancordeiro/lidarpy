@@ -84,7 +84,7 @@ class GetCod:
         self._mc_bool = False
 
         original_ds = self.lidar_data.copy()
-        original_inelastic_signal = filter_wavelength(self.lidar_data, self.lidar_wavelength, self.pc)
+        original_inelastic_signal = filter_wavelength(self.lidar_data, self.raman_wavelength, self.pc)
         inelastic_uncertainty = filter_wavelength(self.lidar_data, self.raman_wavelength, self.pc, "sigma")
 
         inelastic_signals = (np.random.randn(self.mc_iter, len(original_inelastic_signal)) * inelastic_uncertainty

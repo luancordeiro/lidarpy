@@ -2,8 +2,9 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-from lidarpy.inversion.transmittance import get_cod
+from lidarpy.inversion.transmittance import GetCod
 from lidarpy.data.manipulation import remove_background, remove_background_fit
+from lidarpy.data.pre_processor import pre_processor
 
 weak_cloud = 1
 
@@ -33,22 +34,28 @@ print()
 
 plt.plot(ds.phy.data * ds.coords["rangebin"] ** 2, label="antes")
 
-ds = ds.pipe(remove_background, [10_000, 14_000])
 
-ds = ds.pipe(remove_background_fit,
-             355,
-             df_sonde.pressure.to_numpy(),
-             df_sonde.temperature.to_numpy(),
-             [10_000, 14_000])
+def process(lidar_data):
+    return (lidar_data
+            .pipe(remove_background, [14_000, 15_000])
+            .pipe(remove_background_fit,
+                  355,
+                  df_sonde.pressure.to_numpy(),
+                  df_sonde.temperature.to_numpy(),
+                  [14_000, 15_000]))
+
+
+ds = ds.pipe(pre_processor, 500, process, True)
 
 plt.plot(ds.phy.data * ds.coords["rangebin"] ** 2, label="depois")
 plt.legend()
 plt.show()
 
-tau = get_cod(ds,
-              [5800, 6150],
-              355,
-              df_sonde["pressure"].to_numpy(),
-              df_sonde["temperature"].to_numpy())
+tau = GetCod(ds,
+             [5800, 6150],
+             355,
+             df_sonde["pressure"].to_numpy(),
+             df_sonde["temperature"].to_numpy(),
+             mc_iter=300).fit()
 
 print(tau)
