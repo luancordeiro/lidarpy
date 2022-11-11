@@ -6,6 +6,13 @@ import matplotlib.pyplot as plt
 
 
 class GetCod:
+    """
+
+    https://ntrs.nasa.gov/api/citations/20000092057/downloads/20000092057.pdf
+
+    page: 23
+
+    """
     cod = None
     cod_std = None
     tau = {}
@@ -57,20 +64,20 @@ class GetCod:
         model_rcs_top = molecular_raman_model(self.lidar_data, 355, 387, self.p_air, self.t_air, fit_top_ref,
                                               self.co2ppmv, self.pc) * self.rangebin ** 2
 
-        # fit_b_ref = z_finder(self.rangebin, fit_base_ref)
-        # fit_t_ref = z_finder(self.rangebin, fit_top_ref)
-        # p_ref = z_finder(self.rangebin, [fit_base_ref[0] - 3000, fit_top_ref[1] + 3000])
-        # rcs = filter_wavelength(self.lidar_data, self.raman_wavelength, self.pc) * self.rangebin ** 2
-        # plt.plot(self.rangebin, rcs, "b-", label="RCS 387")
-        # plt.plot(self.rangebin[fit_b_ref[0]:fit_b_ref[1]], rcs[fit_b_ref[0]:fit_b_ref[1]], "y*",
-        #          label="base reference fit")
-        # plt.plot(self.rangebin[fit_t_ref[0]:fit_t_ref[1]], rcs[fit_t_ref[0]:fit_t_ref[1]], "g*",
-        #          label="top reference fit")
-        # plt.plot(self.rangebin[p_ref[0]:p_ref[1]], model_rcs_base[p_ref[0]:p_ref[1]], "k--", label="base fit")
-        # plt.plot(self.rangebin[p_ref[0]:p_ref[1]], model_rcs_top[p_ref[0]:p_ref[1]], "r--", label="top fit")
-        # plt.legend()
-        # plt.grid()
-        # plt.show()
+        fit_b_ref = z_finder(self.rangebin, fit_base_ref)
+        fit_t_ref = z_finder(self.rangebin, fit_top_ref)
+        p_ref = z_finder(self.rangebin, [fit_base_ref[0] - 3000, fit_top_ref[1] + 3000])
+        rcs = filter_wavelength(self.lidar_data, self.raman_wavelength, self.pc) * self.rangebin ** 2
+        plt.plot(self.rangebin, rcs, "b-", label="RCS 387")
+        plt.plot(self.rangebin[fit_b_ref[0]:fit_b_ref[1]], rcs[fit_b_ref[0]:fit_b_ref[1]], "y*",
+                 label="base reference fit")
+        plt.plot(self.rangebin[fit_t_ref[0]:fit_t_ref[1]], rcs[fit_t_ref[0]:fit_t_ref[1]], "g*",
+                 label="top reference fit")
+        plt.plot(self.rangebin[p_ref[0]:p_ref[1]], model_rcs_base[p_ref[0]:p_ref[1]], "k--", label="base fit")
+        plt.plot(self.rangebin[p_ref[0]:p_ref[1]], model_rcs_top[p_ref[0]:p_ref[1]], "r--", label="top fit")
+        plt.legend()
+        plt.grid()
+        plt.show()
 
         tau_cloud = (np.log(self.scatterer_numerical_density[self.cloud_ref[1]] * model_rcs_base[self.cloud_ref[0]]
                             / (self.scatterer_numerical_density[self.cloud_ref[0]] * model_rcs_top[self.cloud_ref[1]]))
