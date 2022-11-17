@@ -57,7 +57,7 @@ def atmospheric_interpolation(rangebin, df_sonde):
     temperature = f_temp(rangebin)
     pressure = f_pres(rangebin)
 
-    return temperature, pressure
+    return temperature, pressure * 100
 
 
 def molecular_model(lidar_data: xr.Dataset, wavelength, p_air, t_air, alt_ref, co2ppmv=392, pc=True) -> np.array:

@@ -87,3 +87,7 @@ if weak_cloud:
                   df_sol["z"].to_numpy()[ind],
                   df_sol["beta-cld"].to_numpy()[ind],
                   1)
+
+print(np.trapz(y=alpha[ind], x=klett.rangebin[ind]))
+
+print(np.trapz(y=beta[ind], x=klett.rangebin[ind]))
