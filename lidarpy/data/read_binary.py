@@ -165,8 +165,13 @@ class GetData:
         temperatures_0 = []
         phys = []
         raws = []
+        count = 0
         for file in self.files_name:
-            head, phy, raw = self.profile_read(f"{self.directory}/{file}")
+            try:
+                head, phy, raw = self.profile_read(f"{self.directory}/{file}")
+            except:
+                count += 1
+                continue
 
             if file == self.files_name[0]:
                 first_head = head.copy()
@@ -195,6 +200,7 @@ class GetData:
             phys.append(phy)
             raws.append(raw)
 
+        print(f"problemas={count} de {len(self.files_name)}")
         wavelengths = [f"{wavelength}_{photon}"
                        for wavelength, photon
                        in zip(head["ch"]["wlen"], head["ch"]["photons"])]

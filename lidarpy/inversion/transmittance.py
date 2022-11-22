@@ -42,31 +42,31 @@ class GetCod:
 
         mean = transmittance_.mean()
 
-        # std = transmittance_.std(ddof=1)
-        # fit_ref = z_finder(self.rangebin, self.fit_ref)
-        # plt.figure(figsize=(12, 5))
-        # plt.plot(self.rangebin, rcs, "b-", label="Lidar profile")
-        # plt.plot(self.rangebin[fit_ref[0]:fit_ref[1]], rcs[fit_ref[0]:fit_ref[1]], "y--", label="Fit region")
-        # # plt.plot(self.z[cloud_lims], rcs[cloud_lims], "b*", label="Cloud lims")
-        # plt.plot(self.rangebin, molecular_rcs, "k-", label="Mol. profile")
-        # plt.plot(self.rangebin[self.transmittance_ref: self.transmittance_ref + 150],
-        #          rcs[self.transmittance_ref: self.transmittance_ref + 150],
-        #          "y*", label="transmittance")
-        # plt.grid()
-        # plt.yscale("log")
-        # plt.legend()
-        # plt.xlabel("altitude (m)")
-        # plt.ylabel("S(z)")
-        # plt.show()
-        #
-        # plt.figure(figsize=(12, 5))
-        # transmittance_z = self.rangebin[self.transmittance_ref: self.transmittance_ref + 150]
-        # plt.plot(transmittance_z, transmittance_)
-        # plt.plot([transmittance_z[0], transmittance_z[-1]], [mean, mean], "k--")
-        # plt.title(f"mean value = {mean.round(4)} +- {std.round(4)}")
-        # plt.xlabel("altitude (m)")
-        # plt.ylabel("Transmittance")
-        # plt.show()
+        std = transmittance_.std(ddof=1)
+        fit_ref = z_finder(self.rangebin, self.fit_ref)
+        plt.figure(figsize=(12, 5))
+        plt.plot(self.rangebin, rcs, "b-", label="Lidar profile")
+        plt.plot(self.rangebin[fit_ref[0]:fit_ref[1]], rcs[fit_ref[0]:fit_ref[1]], "y--", label="Fit region")
+        # plt.plot(self.z[cloud_lims], rcs[cloud_lims], "b*", label="Cloud lims")
+        plt.plot(self.rangebin, molecular_rcs, "k-", label="Mol. profile")
+        plt.plot(self.rangebin[self.transmittance_ref: self.transmittance_ref + 150],
+                 rcs[self.transmittance_ref: self.transmittance_ref + 150],
+                 "y*", label="transmittance")
+        plt.grid()
+        plt.yscale("log")
+        plt.legend()
+        plt.xlabel("Altitude (m)")
+        plt.ylabel("S(z)")
+        plt.show()
+
+        plt.figure(figsize=(12, 5))
+        transmittance_z = self.rangebin[self.transmittance_ref: self.transmittance_ref + 150]
+        plt.plot(transmittance_z, transmittance_)
+        plt.plot([transmittance_z[0], transmittance_z[-1]], [mean, mean], "k--")
+        plt.title(f"mean value = {mean.round(4)} +- {std.round(4)}")
+        plt.xlabel("Altitude (m)")
+        plt.ylabel("Transmittance")
+        plt.show()
 
         return -0.5 * np.log(mean)
 
@@ -127,6 +127,7 @@ def get_lidar_ratio(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p
 
     new_diff = f_diff(new_lr)
 
+    plt.figure(figsize=(12, 5))
     plt.plot(lidar_ratios, difference, "o")
     plt.plot(new_lr, new_diff, "k-")
     plt.plot(new_lr[new_diff.argmin()], min(new_diff), "*")

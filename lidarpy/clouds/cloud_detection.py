@@ -31,6 +31,10 @@ class CloudFinder:
         signal_w_smooth = smooth(self._original_data.phy.data, self.window)
         z_aux = self._original_data.coords["rangebin"].data[::self.window]
         rcs_aux = signal_w_smooth[::self.window] * z_aux ** 2
+        if z_aux[-1] < self.z[-1]:
+            z_aux = np.append(z_aux, self.z[-1])
+            rcs_aux = np.append(rcs_aux, signal_w_smooth[-1] * self.z[-1] ** 2)
+
         f_rcs = interp1d(z_aux, rcs_aux)
         rcs_smooth = f_rcs(self.z)
         rcs_smooth[self.z > 5000] = smooth(rcs_smooth[self.z > 5000], 3)

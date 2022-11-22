@@ -68,6 +68,8 @@ class GetCod:
         fit_t_ref = z_finder(self.rangebin, fit_top_ref)
         p_ref = z_finder(self.rangebin, [fit_base_ref[0] - 3000, fit_top_ref[1] + 3000])
         rcs = filter_wavelength(self.lidar_data, self.raman_wavelength, self.pc) * self.rangebin ** 2
+
+        plt.figure(figsize=(12, 5))
         plt.plot(self.rangebin, rcs, "b-", label="RCS 387")
         plt.plot(self.rangebin[fit_b_ref[0]:fit_b_ref[1]], rcs[fit_b_ref[0]:fit_b_ref[1]], "y*",
                  label="base reference fit")
@@ -75,6 +77,7 @@ class GetCod:
                  label="top reference fit")
         plt.plot(self.rangebin[p_ref[0]:p_ref[1]], model_rcs_base[p_ref[0]:p_ref[1]], "k--", label="base fit")
         plt.plot(self.rangebin[p_ref[0]:p_ref[1]], model_rcs_top[p_ref[0]:p_ref[1]], "r--", label="top fit")
+        plt.xlabel("Altitude (m)")
         plt.legend()
         plt.grid()
         plt.show()
