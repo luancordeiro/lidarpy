@@ -14,7 +14,7 @@ if open_diego_data:
     sigma = df["3"].to_numpy()
 else:
     directory = "data/binary"
-    files = [file for file in os.listdir(directory) if file.startswith("RM")][:30]
+    files = [file for file in os.listdir(directory) if file.startswith("RM")][:15]
     lidar_data = GetData(directory, files).get_xarray()
 
     def process(ds):

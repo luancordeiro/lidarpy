@@ -11,7 +11,7 @@ class GetCod:
     _mc_bool = True
 
     def __init__(self, lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p_air: np.ndarray, t_air: np.ndarray,
-                 pc=True, co2ppmv: int = 392, fit_delta_z=2000, delta_z=200, mc_iter=None):
+                 pc=True, co2ppmv: int = 392, fit_delta_z=2000, delta_z=100, mc_iter=None):
         self.lidar_data = lidar_data
         self.rangebin = lidar_data.coords["rangebin"].data
         self.wavelength = wavelength
@@ -51,7 +51,7 @@ class GetCod:
         plt.plot(self.rangebin, molecular_rcs, "k-", label="Mol. profile")
         plt.plot(self.rangebin[self.transmittance_ref: self.transmittance_ref + 150],
                  rcs[self.transmittance_ref: self.transmittance_ref + 150],
-                 "y*", label="transmittance")
+                 "y*", label="Transmittance")
         plt.grid()
         plt.yscale("log")
         plt.legend()
