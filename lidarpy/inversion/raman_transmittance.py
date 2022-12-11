@@ -21,7 +21,7 @@ class GetCod:
 
     def __init__(self, lidar_data: xr.Dataset, cloud_lims: list, lidar_wavelength: int, raman_wavelength: int,
                  angstrom_coeff: float, p_air: np.ndarray, t_air: np.ndarray, pc=True, co2ppmv: int = 392,
-                 fit_delta_z=2000, delta_z=100, mc_iter=None):
+                 fit_delta_z=2000, delta_z=200, mc_iter=None):
         self.rangebin = lidar_data.coords["rangebin"].data
         self.lidar_data = lidar_data
         self.cloud_lims = cloud_lims
@@ -34,6 +34,8 @@ class GetCod:
         self.co2ppmv = co2ppmv
         self.fit_ref = [cloud_lims[0] - fit_delta_z - 100, cloud_lims[0] - 100]
         self.transmittance_ref = z_finder(self.rangebin, cloud_lims[1] + delta_z)
+        print(f"ref = {self.transmittance_ref}")
+        print(f"z_ref = {self.rangebin[self.transmittance_ref]}")
         self.mc_iter = mc_iter
 
         self.cloud_ref = z_finder(self.rangebin, [cloud_lims[0], cloud_lims[1]])
@@ -48,11 +50,9 @@ class GetCod:
                                                         raman_wavelength,
                                                         co2ppmv).get_params()
 
-        self.tau = (cumtrapz(alpha['elastic_mol'] + alpha['inelastic_mol'],
-                             dx=self.rangebin[1] - self.rangebin[0],
-                             initial=0)
-                    - np.trapz(alpha['elastic_mol'][:self.cloud_ref[0]] + alpha['inelastic_mol'][:self.cloud_ref[0]],
-                               dx=self.rangebin[1] - self.rangebin[0]))
+        self.tau = cumtrapz(alpha['elastic_mol'] + alpha['inelastic_mol'],
+                            dx=self.rangebin[1] - self.rangebin[0],
+                            initial=0)
 
         self.scatterer_numerical_density = 78.08e-2 * p_air / (1.380649e-23 * t_air)
 
@@ -64,43 +64,44 @@ class GetCod:
 
         rcs = filter_wavelength(self.lidar_data, self.raman_wavelength, self.pc) * self.rangebin ** 2
 
-        log_ = np.log(
-            self.scatterer_numerical_density[self.transmittance_ref:self.transmittance_ref + 150]
-            * model_rcs[self.cloud_ref[0]]
-            / (self.scatterer_numerical_density[self.cloud_ref[0]]
-               * rcs[self.transmittance_ref:self.transmittance_ref + 150])
-        )
+        log_ = np.log(model_rcs[self.transmittance_ref:self.transmittance_ref + 150]
+                      / (rcs[self.transmittance_ref:self.transmittance_ref + 150]))
 
-        tau_cloud = log_ - self.tau[self.transmittance_ref:self.transmittance_ref + 150]
+        tau_cloud = log_
 
         self.cod = tau_cloud / (1 + (self.lidar_wavelength / self.raman_wavelength) ** self.angstrom_coeff)
 
         plt.figure(figsize=(12, 5))
-        plt.plot(self.rangebin, rcs, "b-", label="RCS 387")
-        plt.plot(self.rangebin[self.cloud_ref[1]:self.cloud_ref[1] + 150],
-                 rcs[self.cloud_ref[1]:self.cloud_ref[1] + 150], "y*", label="Transmittance")
+        plt.plot(self.rangebin / 1e3, rcs, "-", color="#0c84a6", alpha=0.8, label="RCS 387")
+        plt.plot(self.rangebin[self.transmittance_ref:self.transmittance_ref + 150] / 1e3,
+                 rcs[self.transmittance_ref:self.transmittance_ref + 150], "g*", alpha=0.4, label="Transmittance")
         fit_b_ref = z_finder(self.rangebin, self.fit_ref)
-        plt.plot(self.rangebin[fit_b_ref[0]:fit_b_ref[1]], rcs[fit_b_ref[0]:fit_b_ref[1]], "y--",
+        plt.plot(self.rangebin[fit_b_ref[0]:fit_b_ref[1]] / 1e3, rcs[fit_b_ref[0]:fit_b_ref[1]], "g--", alpha=1,
                  label="Fit region")
-        plt.plot(self.rangebin, model_rcs, "k--", label="base fit")
+        plt.plot(self.rangebin / 1e3, model_rcs, "k--", label="Mol. profile")
         plt.yscale("log")
         plt.ylabel("S(z)")
-        plt.xlabel("Altitude (m)")
+        plt.xlabel("Height (km)")
         plt.legend()
         plt.grid()
+        plt.tight_layout()
+        plt.savefig("figuras/raman_transmittance.jpg", dpi=300)
         plt.show()
 
         plt.figure(figsize=(12, 5))
-        z_raman = self.rangebin[self.cloud_ref[1]:self.cloud_ref[1] + 150]
-        plt.plot(z_raman, self.cod)
-        plt.plot([z_raman[0], z_raman[-1]], [self.cod.mean(), self.cod.mean()], "k--")
+        z_raman = self.rangebin[self.transmittance_ref:self.transmittance_ref + 150]
+        plt.plot(z_raman / 1e3, self.cod, "-", color="#0c84a6", alpha=0.8, linewidth=2)
+        plt.plot([z_raman[0] / 1e3, z_raman[-1] / 1e3], [self.cod.mean(), self.cod.mean()], "k--")
         plt.grid()
-        plt.title(f"COD mean = {self.cod.mean().round(4)} +- {self.cod.std(ddof=1).round(4)}")
-        plt.xlabel("Altitude (m)")
-        plt.ylabel("COD raman")
+        cod = self.cod.std(ddof=1) / np.sqrt(len(self.cod))
+        plt.title(r"$\tau^c_{Raman}=$" + f"{self.cod.mean().round(2)}" + r" $std_{mean}=$" + f"{cod.round(2)}")
+        plt.xlabel("Height (km)")
+        plt.ylabel(r"$\tau^c_{Raman}$")
+        plt.tight_layout()
+        plt.savefig("figuras/raman_tau_transmittance.jpg", dpi=300)
         plt.show()
 
-        return self.cod.mean()
+        return self.cod.mean(), self.cod.std(ddof=1) / np.sqrt(len(self.cod))
 
     def _mc_fit(self):
         self._mc_bool = False
