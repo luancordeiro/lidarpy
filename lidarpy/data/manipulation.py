@@ -15,7 +15,7 @@ def remove_background(ds: xr.Dataset, alt_ref: list) -> xr.Dataset:
     ===========================================================================
 
     Exemplo:
-    ds_clean = ds.pipe(remove_background, [45_000, 50_000])
+    ds_clean = ds.pipe(remove_background, [30_000, 50_000])
     """
     background = (ds
                   .phy
@@ -25,45 +25,6 @@ def remove_background(ds: xr.Dataset, alt_ref: list) -> xr.Dataset:
     ds.phy.data = (ds.phy - background).data
 
     ds = ds.assign(background=background)
-
-    return ds
-
-
-def binshift(ds: xr.Dataset, dead_bin):
-    def displace(data_: np.array, bins: int):
-        data_ = data_.copy()
-        if bins > 0:
-            data_[:-bins] = data_[bins:]
-        elif bins == 0:
-            return data_
-        else:
-            data_ = np.insert(data_, 0, [0] * (-bins))[:bins]
-
-        return data_
-
-    ds = ds.copy()
-
-    if "channel" not in ds.coords:
-        ds.phy.data = displace(ds.phy.data, dead_bin)
-        return ds
-
-    new_phys = []
-    for channel, dbin in zip(ds.channel.data, dead_bin):
-        data = ds.sel(channel=channel).phy.data
-        if "time" in ds.coords:
-            data_times = []
-            for time in ds.time.data:
-                data_time = ds.sel(channel=channel, time=time).phy.data
-                data_times.append(displace(data_time, dbin))
-            new_phys.append(data_times)
-            dims = ["channel", "time", "rangebin"]
-        else:
-            new_phys.append(displace(data, dbin))
-            dims = ["channel", "rangebin"]
-
-    print(np.shape(new_phys))
-
-    ds = ds.assign(phy=xr.DataArray(new_phys, dims=dims))
 
     return ds
 
@@ -226,6 +187,45 @@ def z_finder(rangebin: np.array, alts):
         return [finder(alt) for alt in alts]
     else:
         return finder(alts)
+
+
+def binshift(ds: xr.Dataset, dead_bin):
+    def displace(data_: np.array, bins: int):
+        data_ = data_.copy()
+        if bins > 0:
+            data_[:-bins] = data_[bins:]
+        elif bins == 0:
+            return data_
+        else:
+            data_ = np.insert(data_, 0, [0] * (-bins))[:bins]
+
+        return data_
+
+    ds = ds.copy()
+
+    if "channel" not in ds.coords:
+        ds.phy.data = displace(ds.phy.data, dead_bin)
+        return ds
+
+    new_phys = []
+    for channel, dbin in zip(ds.channel.data, dead_bin):
+        data = ds.sel(channel=channel).phy.data
+        if "time" in ds.coords:
+            data_times = []
+            for time in ds.time.data:
+                data_time = ds.sel(channel=channel, time=time).phy.data
+                data_times.append(displace(data_time, dbin))
+            new_phys.append(data_times)
+            dims = ["channel", "time", "rangebin"]
+        else:
+            new_phys.append(displace(data, dbin))
+            dims = ["channel", "rangebin"]
+
+    print(np.shape(new_phys))
+
+    ds = ds.assign(phy=xr.DataArray(new_phys, dims=dims))
+
+    return ds
 
 
 def get_uncertainty(lidar_data: xr.Dataset, wavelength: int, nshoots: int, pc: bool = True):
