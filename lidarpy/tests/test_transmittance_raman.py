@@ -11,7 +11,7 @@ from lidarpy.inversion.klett import Klett
 import numpy as np
 
 directory = "data/binary"
-files = [file for file in os.listdir(directory) if file.startswith("RM")][:30]
+files = [file for file in os.listdir(directory) if file.startswith("RM")][:100]
 
 lidar_data = GetData(directory, files).get_xarray()
 
