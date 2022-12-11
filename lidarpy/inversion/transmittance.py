@@ -11,7 +11,7 @@ class GetCod:
     _mc_bool = True
 
     def __init__(self, lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p_air: np.ndarray, t_air: np.ndarray,
-                 pc=True, co2ppmv: int = 392, fit_delta_z=2000, delta_z=100, mc_iter=None):
+                 pc=True, co2ppmv: int = 392, fit_delta_z=2000, delta_z=200, mc_iter=None):
         self.lidar_data = lidar_data
         self.rangebin = lidar_data.coords["rangebin"].data
         self.wavelength = wavelength
@@ -21,6 +21,8 @@ class GetCod:
         self.co2ppmv = co2ppmv
         self.fit_ref = [cloud_lims[0] - fit_delta_z - 100, cloud_lims[0] - 100]
         self.transmittance_ref = z_finder(self.rangebin, cloud_lims[1] + delta_z)
+        print(f"ref = {self.transmittance_ref}")
+        print(f"z_ref = {self.rangebin[self.transmittance_ref]}")
         self.mc_iter = mc_iter
 
     def fit(self):
@@ -45,30 +47,44 @@ class GetCod:
         std = transmittance_.std(ddof=1)
         fit_ref = z_finder(self.rangebin, self.fit_ref)
         plt.figure(figsize=(12, 5))
-        plt.plot(self.rangebin, rcs, "b-", label="Lidar profile")
-        plt.plot(self.rangebin[fit_ref[0]:fit_ref[1]], rcs[fit_ref[0]:fit_ref[1]], "y--", label="Fit region")
+        plt.plot(self.rangebin / 1e3, rcs, "-", color="#0c84a6", alpha=0.8, label="Lidar profile")
+        plt.plot(self.rangebin[fit_ref[0]:fit_ref[1]] / 1e3, rcs[fit_ref[0]:fit_ref[1]], "g--", alpha=1,
+                 label="Fit region")
         # plt.plot(self.z[cloud_lims], rcs[cloud_lims], "b*", label="Cloud lims")
-        plt.plot(self.rangebin, molecular_rcs, "k-", label="Mol. profile")
-        plt.plot(self.rangebin[self.transmittance_ref: self.transmittance_ref + 150],
+        plt.plot(self.rangebin / 1e3, molecular_rcs, "k--", label="Mol. profile")
+        plt.plot(self.rangebin[self.transmittance_ref: self.transmittance_ref + 150] / 1e3,
                  rcs[self.transmittance_ref: self.transmittance_ref + 150],
-                 "y*", label="Transmittance")
+                 "g*", alpha=0.4, label="transmittance")
         plt.grid()
         plt.yscale("log")
         plt.legend()
-        plt.xlabel("Altitude (m)")
+        plt.xlabel("Height (km)")
         plt.ylabel("S(z)")
+        plt.tight_layout()
+        plt.savefig("figuras/transmittance.jpg", dpi=300)
         plt.show()
+
+        cod_mean = (-0.5 * np.log(transmittance_)).mean()
+        cod_std = (-0.5 * np.log(transmittance_)).std(ddof=1) / np.sqrt(len(transmittance_))
 
         plt.figure(figsize=(12, 5))
         transmittance_z = self.rangebin[self.transmittance_ref: self.transmittance_ref + 150]
-        plt.plot(transmittance_z, transmittance_)
-        plt.plot([transmittance_z[0], transmittance_z[-1]], [mean, mean], "k--")
-        plt.title(f"mean value = {mean.round(4)} +- {std.round(4)}")
-        plt.xlabel("Altitude (m)")
-        plt.ylabel("Transmittance")
+        plt.plot(transmittance_z / 1e3, transmittance_, "-", color="#0c84a6", alpha=0.8, linewidth=2,
+                 label="Cirrus lidar Transmittance")
+        plt.plot([transmittance_z[0] / 1e3, transmittance_z[-1] / 1e3], [mean, mean], "k--",
+                 label=r"$T^c_{mean} = $" + str(mean.round(4)))
+        plt.title(r"$\tau_{Trans}^c = $" + str(cod_mean.round(3)) + r" $std_{mean} = $" + str(cod_std.round(3)))
+        plt.xlabel("Height (km)")
+        plt.ylabel(r"$T^c=\exp(-2\tau^c)$")
+        plt.legend()
+        plt.grid()
+        plt.tight_layout()
+        plt.savefig("figuras/transmittance_tau.jpg", dpi=300)
         plt.show()
+        print(cod_mean)
+        print(cod_std)
 
-        return -0.5 * np.log(mean)
+        return cod_mean
 
     def _mc_fit(self):
         self._mc_bool = False
@@ -104,7 +120,8 @@ def get_lidar_ratio(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p
                                p_air,
                                t_air,
                                pc,
-                               co2ppmv).fit()
+                               co2ppmv,
+                               delta_z=1e3).fit()
 
     lidar_ratios = np.arange(5, 75, 5)
 
@@ -116,10 +133,14 @@ def get_lidar_ratio(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p
     for lidar_ratio in lidar_ratios:
         klett.set_lidar_ratio(lidar_ratio)
         alpha, *_ = klett.fit()
-        taus.append(trapz(alpha[cloud_ind[0]:cloud_ind[1] + 1],
-                          lidar_data.coords["rangebin"].data[cloud_ind[0]:cloud_ind[1] + 1]))
+        taus.append(trapz(y=alpha[cloud_ind[0]:cloud_ind[1] + 1],
+                          dx=lidar_data.coords["rangebin"].data[1] - lidar_data.coords["rangebin"].data[0]))
 
     difference = (np.array(taus) - tau_transmittance) ** 2
+
+    # print(f"TAU TRANSMITÂNCIA={tau_transmittance}")
+    # print(f"LR + TAU KLETT={list(zip(lidar_ratios, np.array(taus)))}")
+    # print(f"diferenças quadráticas = {difference}")
 
     f_diff = interp1d(lidar_ratios, difference, kind="quadratic")
 
@@ -129,12 +150,16 @@ def get_lidar_ratio(lidar_data: xr.Dataset, cloud_lims: list, wavelength: int, p
 
     plt.figure(figsize=(12, 5))
     plt.plot(lidar_ratios, difference, "o")
-    plt.plot(new_lr, new_diff, "k-")
-    plt.plot(new_lr[new_diff.argmin()], min(new_diff), "*")
-    plt.title(f"lidar ratio = {new_lr[new_diff.argmin()].round(2)}")
+    plt.plot(new_lr, new_diff, "k-", label="Quadratic interpolation")
+    plt.plot(new_lr[new_diff.argmin()], min(new_diff), "r*", markersize=10,
+             label=r"$LR_{min}$ = " + f"{new_lr[new_diff.argmin()].round(2)} sr")
+    # plt.title(r"$LR_{min}$" + f"{new_lr[new_diff.argmin()].round(2)}")
     plt.grid()
-    plt.xlabel("Lidar ratio")
-    plt.ylabel("Difference")
+    plt.legend()
+    plt.xlabel("Lidar ratio (sr)")
+    plt.ylabel(r"$(\tau^c_{Klett} - \tau^c_{Trans})^2$")
+    plt.tight_layout()
+    plt.savefig("figuras/lidar_ratio.jpg")
     plt.show()
 
     return new_lr[new_diff.argmin()]
