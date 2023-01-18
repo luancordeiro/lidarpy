@@ -147,8 +147,14 @@ class Klett:
 
         sppr = spp / spp[ref0]
 
-        self._beta['tot'] = sppr / (1 / beta_ref - (cumtrapz(x=self.rangebin, y=2 * self._lr['aer'] * sppr, initial=0)
-                                                    - trapz(x=self.rangebin[:ref0], y=2 * self._lr['aer'] * sppr[:ref0])))
+        if (self._lr['aer'] is int) | (self._lr['aer'] is float):
+            self._beta['tot'] = sppr / (
+                        1 / beta_ref - (cumtrapz(x=self.rangebin, y=2 * self._lr['aer'] * sppr, initial=0)
+                                        - trapz(x=self.rangebin[:ref0], y=2 * self._lr['aer'] * sppr[:ref0])))
+        else:
+            self._beta['tot'] = sppr / (
+                        1 / beta_ref - (cumtrapz(x=self.rangebin, y=2 * self._lr['aer'] * sppr, initial=0)
+                                        - trapz(x=self.rangebin[:ref0], y=2 * self._lr['aer'][:ref0] * sppr[:ref0])))
 
         self._beta['aer'] = self._beta['tot'] - self._beta['mol']
 
