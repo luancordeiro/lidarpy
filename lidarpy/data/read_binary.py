@@ -165,27 +165,45 @@ class GetData:
         temperatures_0 = []
         phys = []
         raws = []
+        nshoots = []
+        zenitals = []
+        wavelengths_ = []
+        actives = []
+        photons = []
+        elastic = []
+        ndata = []
+        pmtv = []
+        binw = []
+        pol = []
+        bits = []
+        tr = []
+        discr = []
         count = 0
+        length = None
+        first_head = None
         for file in self.files_name:
             try:
                 head, phy, raw = self.profile_read(f"{self.directory}/{file}")
             except:
                 count += 1
+                if count == len(self.files_name):
+                    print(f"problemas={count} de {len(self.files_name)}")
+                    return None
                 continue
 
-            if file == self.files_name[0]:
+            if first_head is None:
                 first_head = head.copy()
                 first_ch = first_head["ch"].copy()
-                for key in ["file", "datei", "houri", "datef", "hourf", "jdi", "jdf", "T0", "P0", "ch"]:
+                for key in ["file", "datei", "houri", "datef", "hourf", "jdi", "jdf", "T0", "P0", "ch", "nshoots", "nshoots2", "zen", "site"]:
                     first_head.pop(key)
+                length = len(phy[0,:])
             else:
                 new_head = head.copy()
-                new_ch = new_head["ch"]
-                for key in ["file", "datei", "houri", "datef", "hourf", "jdi", "jdf", "T0", "P0", "ch"]:
+                for key in ["file", "datei", "houri", "datef", "hourf", "jdi", "jdf", "T0", "P0", "ch", "nshoots", "nshoots2", "zen", "site"]:
                     new_head.pop(key)
                 bool1 = _compare_dictionaries(first_head, new_head)
-                bool2 = _compare_dictionaries(first_ch, new_ch)
-                if not (bool1 & bool2):
+                # bool2 = _compare_dictionaries(first_ch, new_ch)
+                if not bool1:
                     raise Exception("All headers in the directory must be the same.")
 
             times.append((head["jdi"] + head["jdf"]) / 2)
@@ -197,8 +215,21 @@ class GetData:
             jdf.append(head["jdf"])
             pressures_0.append(head["P0"])
             temperatures_0.append(head["T0"])
-            phys.append(phy)
-            raws.append(raw)
+            phys.append(phy[:, :length])
+            raws.append(raw[:, :length])
+            nshoots.append(head["ch"]["nshoots"])
+            zenitals.append(head["zen"])
+            wavelengths_.append(head["ch"]["wlen"])
+            actives.append(head["ch"]["active"])
+            photons.append(head["ch"]["photons"])
+            elastic.append(head["ch"]["elastic"])
+            ndata.append(head["ch"]["ndata"])
+            pmtv.append(head["ch"]["pmtv"])
+            binw.append(head["ch"]["binw"])
+            pol.append(head["ch"]["pol"])
+            bits.append(head["ch"]["bits"])
+            tr.append(head["ch"]["tr"])
+            discr.append(head["ch"]["discr"])
 
         print(f"problemas={count} de {len(self.files_name)}")
         wavelengths = [f"{wavelength}_{photon}"
@@ -214,6 +245,20 @@ class GetData:
         for name, var in zip(names, vars_):
             das[name] = xr.DataArray(var, coords=[times], dims="time")
         ds = xr.Dataset(das)
+        ds = ds.assign(nshoots=xr.DataArray(nshoots, coords=[times, wavelengths], dims=["time", "channel"]))
+        ds = ds.assign(zenital=xr.DataArray(zenitals, coords={"time": times}, dims=["time"]))
+        ds = ds.assign(wavelength=xr.DataArray(wavelengths_, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
+        ds = ds.assign(active=xr.DataArray(actives, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
+        ds = ds.assign(photon=xr.DataArray(photons, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
+        ds = ds.assign(elastic=xr.DataArray(elastic, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
+        ds = ds.assign(ndata=xr.DataArray(ndata, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
+        ds = ds.assign(pmtv=xr.DataArray(pmtv, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
+        ds = ds.assign(binw=xr.DataArray(binw, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
+        ds = ds.assign(pol=xr.DataArray(pol, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
+        ds = ds.assign(bits=xr.DataArray(bits, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
+        ds = ds.assign(tr=xr.DataArray(tr, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
+        ds = ds.assign(discr=xr.DataArray(discr, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
+
         first_head["ch"] = first_ch
         ds.attrs = first_head
         ds = ds.assign(rcs=lambda x: ds.phy * ds.coords["rangebin"].data ** 2)

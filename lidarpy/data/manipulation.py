@@ -6,6 +6,13 @@ from scipy.integrate import cumtrapz
 from lidarpy.data.alpha_beta_mol import AlphaBetaMolecular
 import matplotlib.pyplot as plt
 import xarray as xr
+import datetime as dt
+
+
+def matlab2datetime(matlab_datenum):
+    day = dt.datetime.fromordinal(int(matlab_datenum))
+    dayfrac = dt.timedelta(days=matlab_datenum%1) - dt.timedelta(days = 366)
+    return day + dayfrac
 
 
 def remove_background(ds: xr.Dataset, alt_ref: list) -> xr.Dataset:
@@ -236,8 +243,18 @@ def get_uncertainty(lidar_data: xr.Dataset, wavelength: int, nshoots: int, pc: b
         n_bg = t * lidar_data.sel(channel=f"{wavelength}_{int(pc)}").background.data * 1e6
     else:
         n_bg = t * lidar_data.background.data * 1e6
-    sigma_n = ((n + n_bg.reshape(-1, 1)) ** 0.5).reshape(-1)
-    return lidar_data.assign(sigma=xr.DataArray(sigma_n * 1e-6 / t, dims=["rangebin"]))
+    sigma_n = ((n + n_bg.reshape(-1, 1)) ** 0.5)
+    sigma_p = sigma_n * 1e-6 / t
+
+    # plt.plot(sigma_n[0])
+    # plt.title("sigma_n")
+    # plt.show()
+    #
+    # plt.plot(sigma_p[0])
+    # plt.title("sigma_p")
+    # plt.show()
+
+    return lidar_data.assign(sigma=xr.DataArray(sigma_p, dims=["time", "rangebin"]))
 
 
 def dead_time_correction(lidar_data: xr.Dataset, dead_time: float):
