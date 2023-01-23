@@ -4,16 +4,6 @@ from datetime import datetime
 import xarray as xr
 
 
-def _compare_dictionaries(d1, d2):
-    bool_ = True
-    for (key1, value1), (key2, value2) in zip(d1.items(), d2.items()):
-        if type(value1) == np.ndarray:
-            bool_ *= (key1 == key2) & (value1 == value2).all()
-        else:
-            bool_ *= (key1 == key2) & (value1 == value2)
-    return bool_
-
-
 class GetData:
     def __init__(self, directory: str, files_name: list) -> None:
         self.directory = directory
@@ -151,33 +141,14 @@ class GetData:
 
         return head, phy.T, raw.T
 
-    def get_xarray(self) -> xr.Dataset:
+    def get_xarray(self):
         """Esse método tá assumindo que todas as observações foram tomadas no mesmo local e nas mesmas condições
         a única diferença é o tempo de início da medida"""
-        times = []
-        datei = []
-        houri = []
-        datef = []
-        hourf = []
-        jdi = []
-        jdf = []
-        pressures_0 = []
-        temperatures_0 = []
-        phys = []
-        raws = []
-        nshoots = []
-        zenitals = []
-        wavelengths_ = []
-        actives = []
-        photons = []
-        elastic = []
-        ndata = []
-        pmtv = []
-        binw = []
-        pol = []
-        bits = []
-        tr = []
-        discr = []
+        (times, datei, houri, datef, hourf, jdi, jdf, pressures_0, temperatures_0, phys, raws, nshoots, zen,
+         wavelengths_, actives, photons, elastic, ndata, pmtv, binw, pol, bits, tr, discr) = ([], [], [], [], [], [],
+                                                                                              [], [], [], [], [], [],
+                                                                                              [], [], [], [], [], [],
+                                                                                              [], [], [], [], [], [])
         count = 0
         length = None
         first_head = None
@@ -193,74 +164,60 @@ class GetData:
 
             if first_head is None:
                 first_head = head.copy()
-                first_ch = first_head["ch"].copy()
-                for key in ["file", "datei", "houri", "datef", "hourf", "jdi", "jdf", "T0", "P0", "ch", "nshoots", "nshoots2", "zen", "site"]:
+                for key in ["file", "datei", "houri", "datef", "hourf", "jdi", "jdf", "T0", "P0", "ch", "nshoots",
+                            "nshoots2", "zen", "site"]:
                     first_head.pop(key)
-                length = len(phy[0,:])
+                length = len(phy[0, :])
             else:
                 new_head = head.copy()
-                for key in ["file", "datei", "houri", "datef", "hourf", "jdi", "jdf", "T0", "P0", "ch", "nshoots", "nshoots2", "zen", "site"]:
+                for key in ["file", "datei", "houri", "datef", "hourf", "jdi", "jdf", "T0", "P0", "ch", "nshoots",
+                            "nshoots2", "zen", "site"]:
                     new_head.pop(key)
-                bool1 = _compare_dictionaries(first_head, new_head)
-                # bool2 = _compare_dictionaries(first_ch, new_ch)
+                bool1 = first_head == new_head
                 if not bool1:
                     raise Exception("All headers in the directory must be the same.")
-
-            times.append((head["jdi"] + head["jdf"]) / 2)
-            datei.append(head["datei"])
-            houri.append(head["houri"])
-            datef.append(head["datef"])
-            hourf.append(head["hourf"])
-            jdi.append(head["jdi"])
-            jdf.append(head["jdf"])
-            pressures_0.append(head["P0"])
-            temperatures_0.append(head["T0"])
             phys.append(phy[:, :length])
             raws.append(raw[:, :length])
-            nshoots.append(head["ch"]["nshoots"])
-            zenitals.append(head["zen"])
-            wavelengths_.append(head["ch"]["wlen"])
-            actives.append(head["ch"]["active"])
-            photons.append(head["ch"]["photons"])
-            elastic.append(head["ch"]["elastic"])
-            ndata.append(head["ch"]["ndata"])
-            pmtv.append(head["ch"]["pmtv"])
-            binw.append(head["ch"]["binw"])
-            pol.append(head["ch"]["pol"])
-            bits.append(head["ch"]["bits"])
-            tr.append(head["ch"]["tr"])
-            discr.append(head["ch"]["discr"])
+            times.append((head["jdi"] + head["jdf"]) / 2)
 
-        print(f"problemas={count} de {len(self.files_name)}")
+            vecs1 = [datei, houri, datef, hourf, jdi, jdf, pressures_0, temperatures_0, zen]
+            keys1 = ["datei", "houri", "datef", "hourf", "jdi", "jdf", "P0", "T0", "zen"]
+            for vec, key in zip(vecs1, keys1):
+                vec.append(head[key])
+
+            vecs2 = [nshoots, wavelengths_, actives, photons, elastic, ndata, pmtv, binw, pol, bits, tr, discr]
+            keys2 = ["nshoots", "wlen", "active", "photons", "elastic", "ndata", "pmtv", "binw", "pol", "bits", "tr",
+                     "discr"]
+            for vec, key in zip(vecs2, keys2):
+                vec.append(head["ch"][key])
+
+        print(f"{count} perfis não aberto de {len(self.files_name)}")
+
         wavelengths = [f"{wavelength}_{photon}"
                        for wavelength, photon
                        in zip(head["ch"]["wlen"], head["ch"]["photons"])]
 
-        rangebin = np.arange(1, len(phys[0][0]) + 1) * 7.5
-        da_phy = xr.DataArray(phys, coords=[times, wavelengths, rangebin], dims=["time", "channel", "rangebin"])
-        da_raw = xr.DataArray(raws, coords=[times, wavelengths, rangebin], dims=["time", "channel", "rangebin"])
-        das = {"phy": da_phy, "raw": da_raw}
-        vars_ = [datei, houri, datef, hourf, jdi, jdf, pressures_0, temperatures_0]
-        names = ["datei", "houri", "datef", "hourf", "jdi", "jdf", "pressure0", "temperature0"]
-        for name, var in zip(names, vars_):
-            das[name] = xr.DataArray(var, coords=[times], dims="time")
-        ds = xr.Dataset(das)
-        ds = ds.assign(nshoots=xr.DataArray(nshoots, coords=[times, wavelengths], dims=["time", "channel"]))
-        ds = ds.assign(zenital=xr.DataArray(zenitals, coords={"time": times}, dims=["time"]))
-        ds = ds.assign(wavelength=xr.DataArray(wavelengths_, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
-        ds = ds.assign(active=xr.DataArray(actives, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
-        ds = ds.assign(photon=xr.DataArray(photons, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
-        ds = ds.assign(elastic=xr.DataArray(elastic, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
-        ds = ds.assign(ndata=xr.DataArray(ndata, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
-        ds = ds.assign(pmtv=xr.DataArray(pmtv, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
-        ds = ds.assign(binw=xr.DataArray(binw, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
-        ds = ds.assign(pol=xr.DataArray(pol, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
-        ds = ds.assign(bits=xr.DataArray(bits, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
-        ds = ds.assign(tr=xr.DataArray(tr, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
-        ds = ds.assign(discr=xr.DataArray(discr, coords={"time": times, "channel": wavelengths}, dims=["time", "channel"]))
+        rangebin = np.arange(1, len(phys[0][0]) + 1) * head["ch"]["binw"][0]
 
-        first_head["ch"] = first_ch
+        das = {"phy": xr.DataArray(phys, coords=[times, wavelengths, rangebin], dims=["time", "channel", "rangebin"]),
+               "raw": xr.DataArray(raws, coords=[times, wavelengths, rangebin], dims=["time", "channel", "rangebin"])}
+
+        vars1 = [datei, houri, datef, hourf, jdi, jdf, pressures_0, temperatures_0, zen]
+        names1 = ["datei", "houri", "datef", "hourf", "jdi", "jdf", "pressure0", "temperature0", "zen"]
+        for name1, var1 in zip(names1, vars1):
+            das[name1] = xr.DataArray(var1, coords=[times], dims="time")
+
+        vars2 = [nshoots, wavelengths_, actives, photons, elastic, ndata, pmtv, binw, pol, bits, tr, discr]
+        names2 = ["nshoots", "wlen", "active", "photon", "elastic", "ndata", "pmtv", "binw", "pol", "bits",
+                  "tr", "discr"]
+        for name2, var2 in zip(names2, vars2):
+            das[name2] = xr.DataArray(var2, coords=[times, wavelengths], dims=["time", "channel"])
+        ds = xr.Dataset(das)
+
+        first_head["site"] = head["site"]
+
         ds.attrs = first_head
+
         ds = ds.assign(rcs=lambda x: ds.phy * ds.coords["rangebin"].data ** 2)
         return ds
 
