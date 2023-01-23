@@ -210,6 +210,9 @@ class CloudFinder:
 
 
 def cloud_mask_correction(z_bases, z_tops, z_max_capas, nfz_bases, nfz_tops, nfz_max_capas):
+    z_bases_, z_tops_, z_max_capas_, nfz_bases_, nfz_tops_, nfz_max_capas_ = (z_bases.copy(), z_tops.copy(),
+                                                                              z_max_capas.copy(), nfz_bases.copy(),
+                                                                              nfz_tops.copy(), nfz_max_capas.copy())
     dt = 1
     dz1 = 500
     dz2 = 300
@@ -242,11 +245,11 @@ def cloud_mask_correction(z_bases, z_tops, z_max_capas, nfz_bases, nfz_tops, nfz
                     if cond1 | cond2 | cond3 | cond4:
                         neib[i] = True
 
-        z_bases[u] = z_bases[u][neib]
-        z_tops[u] = z_tops[u][neib]
-        z_max_capas[u] = z_max_capas[u][neib]
-        nfz_bases[u] = nfz_bases[u][neib]
-        nfz_tops[u] = nfz_tops[u][neib]
-        nfz_max_capas[u] = nfz_max_capas[u][neib]
+        z_bases_[u] = ([np.nan] if z_bases[u][neib].size == 0 else z_bases[u][neib])
+        z_tops_[u] = ([np.nan] if z_tops[u][neib].size == 0 else z_tops[u][neib])
+        z_max_capas_[u] = ([np.nan] if z_max_capas[u][neib].size == 0 else z_max_capas[u][neib])
+        nfz_bases_[u] = ([np.nan] if nfz_bases[u][neib].size == 0 else nfz_bases[u][neib])
+        nfz_tops_[u] = ([np.nan] if nfz_tops[u][neib].size == 0 else nfz_tops[u][neib])
+        nfz_max_capas_[u] = ([np.nan] if nfz_max_capas[u][neib].size == 0 else nfz_max_capas[u][neib])
 
-    return z_bases, z_tops, z_max_capas, nfz_bases, nfz_tops, nfz_max_capas
+    return z_bases_, z_tops_, z_max_capas_, nfz_bases_, nfz_tops_, nfz_max_capas_
