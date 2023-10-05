@@ -29,25 +29,13 @@ LIDARpy is a comprehensive Python library tailored for the analysis, manipulatio
 
 ## Installation:
 
-_(This is a placeholder; please provide your actual installation details)_
-
-\```bash
+```python
 pip install lidarpy
-\```
+```
 
 ## Usage:
 
-Here are some quick examples:
 
-\```python
-from lidarpy.utils.functions import z_finder
-from lidarpy.analysis import remove_background
-
-# Example for removing background noise:
-ds_clean = remove_background(ds, [30_000, 50_000]);
-\```
-
-_(Consider adding more examples of how to use the other functions and classes.)_
 
 ## License:
 
