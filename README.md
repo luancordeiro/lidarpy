@@ -2,6 +2,12 @@
 
 LIDARpy is a comprehensive Python library tailored for the analysis, manipulation, and interpretation of LIDAR data. This library provides a set of tools for background noise removal, data grouping, bin adjustments, uncertainty computations, and advanced data inversion using both the Klett and Raman methods.
 
+## Installation:
+
+```python
+pip install lidarpy
+```
+
 ## Features:
 
 - **Cloud Identification**: 
@@ -21,13 +27,6 @@ LIDARpy is a comprehensive Python library tailored for the analysis, manipulatio
 
 - **Lidar Ratio Computation**:
   - The upcoming `LidarRatioCalculator` class is anticipated to offer essential tools and algorithms for calculating the lidar ratio, crucial for many LIDAR applications.
-
-
-## Installation:
-
-```python
-pip install lidarpy
-```
 
 ## Usage:
 
