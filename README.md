@@ -31,6 +31,13 @@ pip install lidarpy
 
 ## Usage:
 
+For hands-on examples and better understanding:
+
+- **Klett Inversion**: 
+  - A practical example of the Klett inversion can be accessed [here](https://colab.research.google.com/drive/1adUcYvsfHEO-ncbU-AaVtlIaqZSRMHv4?usp=sharing).
+  
+- **Raman Inversion**:
+  - For a detailed example of the Raman inversion, click [here](https://colab.research.google.com/drive/1JdSv8H25krw-dEjKL9COnPCeiDDV4mIp?usp=sharing).
 
 
 ## License:
