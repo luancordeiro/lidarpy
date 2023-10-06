@@ -4,28 +4,24 @@ LIDARpy is a comprehensive Python library tailored for the analysis, manipulatio
 
 ## Features:
 
-1. **Background Noise Removal**:
-   - Easily remove background noise from LIDAR inversion using reference altitude with `remove_background` function.
-   
-2. **Data Grouping**:
-   - Group the LIDAR inversion every n_bins range bins using `groupby_nbins`.
+- **Cloud Identification**: 
+  - The `CloudFinder` class has been designed to scrutinize LIDAR signals and pinpoint cloud layers based on set conditions and statistical measures.
+  
+- **Klett Inversion Application**:
+  - Employ the `Klett` class for the execution of the Klett inversion algorithm specific to LIDAR inversion.
+  
+- **Raman Inversion Technique**:
+  - The `Raman` class assists in applying the Raman inversion algorithm, extracting information on aerosol extinction and backscatter profiles from LIDAR inversions.
+  
+- **Multi-Scattering Corrections**:
+  - Harness the power of the `multiscatter` function to perform comprehensive multiple scattering calculations for radar or lidar, inspired by Hogan's 2008 model on fast lidar and radar multiple-scattering.
 
-3. **Bin Adjustments**:
-   - Adjust inversion bins for dead time or other artifacts with `binshift`.
+- **Cloud Optical Depth Calculation**:
+  - Utilize the `GetCod` class to compute Cloud Optical Depth (COD) via methods elaborated by Young in 1995. The class capitalizes on molecular scattering principles and radiative transfer theory to present both standard fitting and Monte Carlo techniques.
 
-4. **Uncertainty Computation**:
-   - Calculate the uncertainty for LIDAR observations with `get_uncertainty`.
+- **Lidar Ratio Computation**:
+  - The upcoming `LidarRatioCalculator` class is anticipated to offer essential tools and algorithms for calculating the lidar ratio, crucial for many LIDAR applications.
 
-5. **Dead Time Correction**:
-   - Apply a dead-time correction using the `dead_time_correction` function.
-
-6. **Klett Inversion**:
-   - Implement the Klett inversion algorithm to derive aerosol extinction and backscatter profiles with the `Klett` class.
-
-7. **Raman Inversion**:
-   - Use the Raman inversion technique based on differences between elastic and inelastic scattering signals with the `Raman` class.
-    
-8. **Multi-Scatter Correction**
 
 ## Installation:
 
