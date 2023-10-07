@@ -38,9 +38,11 @@ For hands-on examples and better understanding:
 - **Raman Inversion**:
   - For a detailed example of the Raman inversion, click [here](https://colab.research.google.com/drive/1JdSv8H25krw-dEjKL9COnPCeiDDV4mIp?usp=sharing).
  
-- **Transmittance method**:
+- **Transmittance Method**:
   - For a detailed example of the tansmittance method, click [here](https://colab.research.google.com/drive/14ERNR1mqINw04KMRrZXKHyl8zDfg34eg?usp=sharing).
 
+- **Cloud Detection Tool**
+  - For a detailed example of the cloud detection, click [here](https://colab.research.google.com/drive/1dt13jyj_OV7bhYIAJYf8KtD79Ucn2p_M?usp=sharing).
 
 ## License:
 
