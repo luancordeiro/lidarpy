@@ -2,90 +2,6 @@ import subprocess
 import os
 import random
 import numpy as np
-import datetime
-
-
-def smooth(signal: np.array, window: int):
-    if window % 2 == 0:
-        raise Exception("Window value must be odd")
-    out0 = np.convolve(signal, np.ones(window, dtype=int), 'valid') / window
-    r = np.arange(1, window - 1, 2)
-    start = np.cumsum(signal[:window - 1])[::2] / r
-    stop = (np.cumsum(signal[:-window:-1])[::2] / r)[::-1]
-    return np.concatenate((start, out0, stop))
-
-
-def multiscatter_corr_fun(hlow, height_lidar, zh1, zbase, ztope, Alpha_Klett, alpha_mol_in, Tair_in, lambda_ELASTICO, rho):
-    if len(Alpha_Klett.shape) == 1:
-        Alpha_Klett = Alpha_Klett.reshape(-1, 1)
-        alpha_mol_in = alpha_mol_in.reshape(-1, 1)
-        Tair_in = Tair_in.reshape(-1, 1)
-        zbase = [[zbase]]
-        ztope = [[ztope]]
-    nhours = len(zbase)
-    print('[1/8] directory listing finished @', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-
-    eta_teste = np.ones(Alpha_Klett.shape)
-    ratios_teste = np.ones(Alpha_Klett.shape)
-
-    for u in range(nhours):
-        if np.sum(Alpha_Klett[:, u] > 0) == 0:
-            continue
-
-        zero_one_logic = np.zeros(zh1.shape, dtype=bool)
-        dz = 100
-        iizb = np.where(np.array(zbase[u]) > hlow)[0]
-        for j in range(len(iizb)):
-            zero_one_logic[(zh1 > zbase[u][iizb[j]]-dz) & (zh1 < ztope[u][iizb[j]]+dz)] = True
-
-        rrr = np.arange(3, len(zh1), 4)
-        range_ms_teste = zh1[rrr]
-
-        aux = np.zeros(zh1.shape)
-        aux[zero_one_logic] = smooth(Alpha_Klett[zero_one_logic, u]/1000, 9)
-        aux[aux < 0] = 0
-        ext_ms_teste = aux[rrr]
-
-        ext_air_ms_teste = alpha_mol_in[rrr, u]/1000
-
-        Taux = (Tair_in[rrr, u] - 273.15)
-        Taux[(Taux < -80) | (range_ms_teste > 18000)] = -80
-
-        radius_ms_teste = (140.5010 + 5.8714 * Taux + 0.0992 * Taux ** 2 + 5.6341e-004 * Taux ** 3) * 1e-6
-        options_ms = '-quiet -algorithms fast lidar'
-        wavelength_ms = lambda_ELASTICO * 1e-6
-        alt_MSL_ms = height_lidar
-        rho_div_ms = 0.36e-3 / 2
-        rho_fov_ms = np.array([(rho / 4000) / 2])  # muda a partir de 2012 4 -> 7 mm
-        range_ms = range_ms_teste
-        ext_ms = ext_ms_teste
-        radius_ms = radius_ms_teste
-        S_ms = np.array([25])
-        ext_air_ms = ext_air_ms_teste
-        ssa_ms = np.array([1])
-        g_ms = np.array([0.8])
-        ssa_air_ms = np.array([1])
-        droplet_fraction_ms = np.array([0])
-        pristine_ice_fraction_ms = np.array([0])
-
-        data_ms = multiscatter(options_ms, wavelength_ms, alt_MSL_ms, rho_div_ms, rho_fov_ms, range_ms, ext_ms,
-                               radius_ms, S_ms, ext_air_ms, ssa_ms, g_ms, ssa_air_ms, droplet_fraction_ms,
-                               pristine_ice_fraction_ms)
-
-        data_single = multiscatter('-algorithms single lidar', wavelength_ms, alt_MSL_ms, rho_div_ms, rho_fov_ms,
-                                   range_ms, ext_ms, radius_ms, S_ms, ext_air_ms, ssa_ms, g_ms, ssa_air_ms,
-                                   droplet_fraction_ms, pristine_ice_fraction_ms)
-
-        aux_inp = 1 - np.log(data_ms["bscat"] / data_single["bscat"]) * 1 / (2 * np.cumsum(ext_ms_teste)
-                                                                             * (range_ms_teste[1] - range_ms_teste[0]))
-
-        eta_teste[:, u] = np.interp(zh1, range_ms_teste, aux_inp)
-        eta_teste[np.isnan(eta_teste[:, u]), u] = 1
-
-        aux_inp = data_single["bscat"] / data_ms["bscat"]
-        ratios_teste[:, u] = np.interp(zh1, range_ms_teste, aux_inp)
-
-    return eta_teste, ratios_teste
 
 
 def multiscatter(options: str = None, wavelength: float = None, alt: float = None, rho_div: float = None,
@@ -362,35 +278,35 @@ def multiscatter(options: str = None, wavelength: float = None, alt: float = Non
 
         index = 4 + nfov
         if is_hsrl:
-            inversion['bscat_air'] = [[row[z] for row in output] for _ in range(index, index + nfov)]
+            data['bscat_air'] = [[row[z] for row in output] for _ in range(index, index + nfov)]
             index += nfov
         if is_adjoint:
-            inversion['ext_AD'] = [row[index + 1] for row in output]
-            inversion['ssa_AD'] = [row[index + 2] for row in output]
-            inversion['g_AD'] = [row[index + 3] for row in output]
-            inversion['ext_bscat_ratio_AD'] = [row[index + 4] for row in output]
+            data['ext_AD'] = [row[index + 1] for row in output]
+            data['ssa_AD'] = [row[index + 2] for row in output]
+            data['g_AD'] = [row[index + 3] for row in output]
+            data['ext_bscat_ratio_AD'] = [row[index + 4] for row in output]
     else:
         n = len(range_)
         if is_hsrl:
-            inversion = {'d_bscat_d_ext': [row[:len(row) // 2] for row in output[:n]],
+            data = {'d_bscat_d_ext': [row[:len(row) // 2] for row in output[:n]],
                     'd_bscat_air_d_ext': [row[len(row) // 2:] for row in output[:n]]}
         else:
-            inversion = {'d_bscat_d_ext': [row for row in output[:n]]}
+            data = {'d_bscat_d_ext': [row for row in output[:n]]}
 
         if len(output) > n:
             if is_hsrl:
-                inversion['d_bscat_d_ssa'] = [row[:len(row) // 2] for row in output[n:n * 2]]
-                inversion['d_bscat_air_d_ssa'] = [row[len(row) // 2:] for row in output[n:n * 2]]
-                inversion['d_bscat_d_g'] = [row[:len(row) // 2] for row in output[2 * n:2 * n + n]]
-                inversion['d_bscat_air_d_g'] = [row[len(row) // 2:] for row in output[2 * n:2 * n + n]]
-                inversion['d_bscat_d_radius'] = [row[:len(row) // 2] for row in output[3 * n:3 * n + n]]
-                inversion['d_bscat_air_d_radius'] = [row[len(row) // 2:] for row in output[3 * n:3 * n + n]]
-                inversion['d_bscat_d_ext_bscat_ratio'] = output[4 * n + 1][:len(output[4 * n + 1]) // 2]
+                data['d_bscat_d_ssa'] = [row[:len(row) // 2] for row in output[n:n * 2]]
+                data['d_bscat_air_d_ssa'] = [row[len(row) // 2:] for row in output[n:n * 2]]
+                data['d_bscat_d_g'] = [row[:len(row) // 2] for row in output[2 * n:2 * n + n]]
+                data['d_bscat_air_d_g'] = [row[len(row) // 2:] for row in output[2 * n:2 * n + n]]
+                data['d_bscat_d_radius'] = [row[:len(row) // 2] for row in output[3 * n:3 * n + n]]
+                data['d_bscat_air_d_radius'] = [row[len(row) // 2:] for row in output[3 * n:3 * n + n]]
+                data['d_bscat_d_ext_bscat_ratio'] = output[4 * n + 1][:len(output[4 * n + 1]) // 2]
             else:
-                inversion['d_bscat_d_ssa'] = output[n:n * 2, :]
-                inversion['d_bscat_d_g'] = output[2 * n:2 * n + n, :]
-                inversion['d_bscat_d_radius'] = output[3 * n:3 * n + n, :]
-                inversion['d_bscat_d_ext_bscat_ratio'] = output[4 * n, :]
+                data['d_bscat_d_ssa'] = output[n:n * 2, :]
+                data['d_bscat_d_g'] = output[2 * n:2 * n + n, :]
+                data['d_bscat_d_radius'] = output[3 * n:3 * n + n, :]
+                data['d_bscat_d_ext_bscat_ratio'] = output[4 * n, :]
 
     # delete temporary files
     os.remove(in_temp)

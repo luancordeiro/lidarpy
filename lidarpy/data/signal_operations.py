@@ -1,7 +1,7 @@
 import numpy as np
 import xarray as xr
 from scipy.signal import savgol_filter
-from scipy.integrate import cumtrapz
+from scipy.integrate import cumulative_trapezoid
 
 from lidarpy.utils.functions import z_finder
 
@@ -123,10 +123,15 @@ def get_uncertainty(signal: np.array, nshoots: np.array, background: np.array):
     Returns:
         np.array: Uncertainty values corresponding to the input LIDAR signal.
     """
-    t = (nshoots / 20e6).reshape(-1, 1)
-    n = t * signal * 1e6
+    if len(signal.shape) == 1:
+        t = nshoots / 20e6
+        n = t * signal * 1e6
+        n_bg = t * background * 1e6
 
-    n_bg = t * background * 1e6
+    else:
+        t = (nshoots / 20e6)[:, np.newaxis]
+        n = t * signal * 1e6
+        n_bg = t * background.reshape(-1, 1) * 1e6
 
     sigma_n = ((n + n_bg) ** 0.5)
     sigma_p = sigma_n * 1e-6 / t
@@ -171,7 +176,7 @@ class FindFitRegion:
         self.rangebin = rangebin
         self.z_ref = z_ref
         self.model = (molecular_data.beta.data
-                      * np.exp(-2 * cumtrapz(rangebin, molecular_data.alpha.data, initial=0)) / rangebin ** 2)
+                      * np.exp(-2 * cumulative_trapezoid(rangebin, molecular_data.alpha.data, initial=0)) / rangebin ** 2)
 
     @staticmethod
     def _chi2_reduced(y_data, y_model, y_err, n_params):

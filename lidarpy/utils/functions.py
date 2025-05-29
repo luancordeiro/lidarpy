@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.interpolate import interp1d
+from scipy.integrate import cumulative_trapezoid
 import datetime as dt
 
 
@@ -51,7 +52,7 @@ def matlab2datetime(matlab_datenum):
 #
 #     scatterer_numerical_density = 78.08e-2 * p_air / (1.380649e-23 * t_air)
 #
-#     model = (scatterer_numerical_density * np.exp(-cumtrapz(rangebin, alpha_lidar_mol + alpha_raman_mol, initial=0))
+#     model = (scatterer_numerical_density * np.exp(-cumulative_trapezoid(rangebin, alpha_lidar_mol + alpha_raman_mol, initial=0))
 #              / rangebin ** 2)
 #
 #     ref = z_finder(rangebin, alt_ref)
@@ -106,7 +107,7 @@ def smooth_diego_fast(signal: np.array, p_before: int, p_after: int):
     return y_sm4
 
 
-def signal_smoother(signal: np.array, rangebin: np.array, window: int):
+def signal_smoother(rangebin: np.array, signal: np.array, window: int):
     """
     Smooth a signal.
 
@@ -156,3 +157,17 @@ def z_finder(rangebin: np.array, alts):
         return [finder(alt) for alt in alts]
     else:
         return finder(alts)
+
+
+def molecular_model(rangebin, signal, molecular_data, alt_ref) -> np.array:
+    alpha_mol, beta_mol = molecular_data.alpha.data, molecular_data.beta.data
+
+    model = beta_mol * np.exp(-2 * cumulative_trapezoid(rangebin, alpha_mol, initial=0)) / rangebin ** 2
+
+    ref = z_finder(rangebin, alt_ref)
+
+    reg = np.polyfit(np.log(model[ref[0]:ref[1]]),
+                     np.log(signal[ref[0]:ref[1]]),
+                     1)
+
+    return np.exp(reg[0] * np.log(model) + reg[1])

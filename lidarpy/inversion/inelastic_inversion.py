@@ -1,6 +1,6 @@
 import xarray as xr
 import numpy as np
-from scipy.integrate import cumtrapz, trapz
+from scipy.integrate import cumulative_trapezoid, trapezoid
 
 from lidarpy.utils.functions import z_finder
 from lidarpy.utils.raman_functions import get_savgol_filter, beta_smooth
@@ -54,14 +54,13 @@ class Raman:
     _beta = dict()
     _beta_std = None
     _lr = dict()
-    _diff_strategy = get_savgol_filter(21, 2)
     _mc_bool = True
     diff_values = None
 
-    def __init__(self, elastic_signal: np.array, inelastic_signal: np.array, rangebin: np.array,
+    def __init__(self, rangebin: np.array, elastic_signal: np.array, inelastic_signal: np.array,
                  elastic_sigma: np.array, inelastic_sigma: np.array, elastic_molecular_data: xr.Dataset,
-                 inelastic_molecular_data: xr.Dataset, lidar_wavelength: int, raman_wavelength: int,
-                 angstrom_coeff: float, raman_scatterer_numerical_density: np.array, z_ref: list):
+                 inelastic_molecular_data: xr.Dataset, raman_scatterer_numerical_density: np.array,
+                 lidar_wavelength: int, raman_wavelength: int, angstrom_coeff: float, molecular_reference_region: list):
         self.elastic_signal = elastic_signal
         self.inelastic_signal = inelastic_signal
         self.elastic_uncertainty = elastic_sigma
@@ -71,7 +70,7 @@ class Raman:
         self.lidar_wavelength = lidar_wavelength * 1e-9
         self.raman_wavelength = raman_wavelength * 1e-9
         self.angstrom_coeff = angstrom_coeff
-        self._ref = z_finder(self.rangebin, z_ref)
+        self._ref = z_finder(self.rangebin, molecular_reference_region)
         self._mean_ref = (self._ref[0] + self._ref[1]) // 2
         self._alpha['elastic_mol'] = elastic_molecular_data.alpha.data
         self._beta['elastic_mol'] = elastic_molecular_data.beta.data
@@ -80,6 +79,7 @@ class Raman:
         self._beta['inelastic_mol'] = inelastic_molecular_data.beta.data
         self._lr['inelastic_mol'] = inelastic_molecular_data.lidar_ratio.data
         self._beta_smooth = beta_smooth
+        self._diff_strategy = get_savgol_filter(21, 2)
 
     def get_alpha(self):
         return self._alpha.copy()
@@ -100,7 +100,7 @@ class Raman:
 
     def _diff(self) -> np.array:
         if self.diff_values is None:
-            return self._diff_strategy()
+            return self._diff_strategy(self)
         return self.diff_values
 
     def _alpha_elastic_aer(self) -> np.array:
@@ -129,11 +129,11 @@ class Raman:
                         * (self.raman_scatterer_numerical_density
                            / self._ref_value(self.raman_scatterer_numerical_density)))
 
-        attenuation_ratio = (np.exp(-cumtrapz(x=self.rangebin, y=self._alpha_inelastic_total(), initial=0)
-                                    + trapz(x=self.rangebin[:self._mean_ref + 1],
+        attenuation_ratio = (np.exp(-cumulative_trapezoid(x=self.rangebin, y=self._alpha_inelastic_total(), initial=0)
+                                    + trapezoid(x=self.rangebin[:self._mean_ref + 1],
                                             y=self._alpha_inelastic_total()[:self._mean_ref + 1]))
-                             / np.exp(-cumtrapz(x=self.rangebin, y=self._alpha_elastic_total(), initial=0)
-                                      + trapz(x=self.rangebin[:self._mean_ref + 1],
+                             / np.exp(-cumulative_trapezoid(x=self.rangebin, y=self._alpha_elastic_total(), initial=0)
+                                      + trapezoid(x=self.rangebin[:self._mean_ref + 1],
                                               y=self._alpha_elastic_total()[:self._mean_ref + 1])))
 
         beta_ref = self._ref_value(self._beta["elastic_mol"])

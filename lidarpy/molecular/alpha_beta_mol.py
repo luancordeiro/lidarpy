@@ -1,6 +1,6 @@
 import numpy as np
 import xarray as xr
-from lidarpy.utils.constants import Constants
+from ..utils.constants import Constants
 
 
 class AlphaBetaMolecular:
@@ -47,11 +47,7 @@ class AlphaBetaMolecular:
     R. Costa (re.dacosta@gmail.com), IPEN, Brazil
     """
 
-    def __init__(self,
-                 p_air: np.ndarray,
-                 t_air: np.ndarray,
-                 rangebin: np.ndarray,
-                 wavelength: float,
+    def __init__(self, rangebin: np.ndarray, p_air: np.ndarray, t_air: np.ndarray, wavelength: float,
                  co2ppmv: float = 372):
         self.rangebin = rangebin
         self.p_air = p_air
@@ -122,7 +118,7 @@ class AlphaBetaMolecular:
 
         alpha_mol = xr.DataArray(alpha_mol, coords=[('rangebin', self.rangebin)], name='alpha')
         beta_mol = xr.DataArray(beta_mol, coords=[('rangebin', self.rangebin)], name='beta')
-        lr_mol = xr.DataArray(lr_mol, coords=[('rangebin', self.rangebin)], name='lidar_ratio')
+        lr_mol = xr.DataArray(lr_mol * np.ones_like(self.rangebin), coords=[('rangebin', self.rangebin)], name='lidar_ratio')
 
         ds = xr.merge([alpha_mol, beta_mol, lr_mol])
 

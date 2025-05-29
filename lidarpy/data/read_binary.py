@@ -15,6 +15,7 @@ class GetData:
         directory (str): Directory containing the LIDAR inversion files.
         files_name (list[str]): List of filenames to be processed.
     """
+    files_w_error = []
 
     def __init__(self, directory: str, files_name: list) -> None:
         self.directory = directory
@@ -186,14 +187,15 @@ class GetData:
         length = None
         first_head = None
         for file in self.files_name:
-            try:
-                head, phy, raw = self.profile_read(f"{self.directory}/{file}")
-            except:
-                count += 1
-                if count == len(self.files_name):
-                    print(f"problemas={count} de {len(self.files_name)}")
-                    return None
-                continue
+            # try:
+            head, phy, raw = self.profile_read(f"{self.directory}/{file}")
+            # except:
+            #     count += 1
+            #     self.files_w_error.append(file)
+            #     if count == len(self.files_name):
+            #         print(f"problemas={count} de {len(self.files_name)}")
+            #         return None
+            #     continue
 
             if first_head is None:
                 first_head = head.copy()

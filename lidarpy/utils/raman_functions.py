@@ -3,7 +3,7 @@ from scipy.signal import savgol_filter
 from sklearn.linear_model import LinearRegression
 
 
-def dif(y: np.array, x: np.array, window: int, weights: np.array = None):
+def dif(x: np.array, y: np.array, window: int, weights: np.array = None):
     def fit(init, final) -> None:
         y_fit = y[init: final].reshape(-1, 1)
         x_fit = x[init: final].reshape(-1, 1)
@@ -37,8 +37,8 @@ def diff_linear_regression(diff_window: int):
 
         ranged_corrected_signal = raman.inelastic_signal * raman.rangebin ** 2
 
-        dif_ranged_corrected_signal = dif(ranged_corrected_signal, raman.rangebin, diff_window, weights)
-        dif_num_density = dif(raman.raman_scatterer_numerical_density, raman.rangebin, diff_window)
+        dif_ranged_corrected_signal = dif(raman.rangebin, ranged_corrected_signal, diff_window, weights)
+        dif_num_density = dif(raman.rangebin, raman.raman_scatterer_numerical_density, diff_window)
         return ((dif_num_density / raman.raman_scatterer_numerical_density)
                 - (dif_ranged_corrected_signal / ranged_corrected_signal))
 

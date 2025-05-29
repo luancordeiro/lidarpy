@@ -2,7 +2,7 @@ import xarray as xr
 import numpy as np
 from lidarpy.utils.functions import molecular_model, z_finder
 from lidarpy.inversion import Klett
-from scipy.integrate import trapz
+from scipy.integrate import trapezoid
 from scipy.interpolate import interp1d
 
 
@@ -36,13 +36,13 @@ class GetCod:
     _delta_z: float = 100
     _transmittance_bins: int = 150
 
-    def __init__(self, signal: np.array, rangebin: np.array, sigma: np.array, molecular_data: xr.Dataset,
-                 cloud_lims: list):
-        self.signal = signal.copy()
-        self.rangebin = rangebin.copy()
-        self.sigma = sigma.copy()
+    def __init__(self, rangebin: np.array, signal: np.array, molecular_data: xr.Dataset, cloud_lims: list,
+                 fit_region: list):
+        self.signal = signal
+        self.rangebin = rangebin
         self.molecular_data = molecular_data
         self.cloud_lims = cloud_lims
+        self.fit_region = fit_region
 
     def set_fit_delta_z(self, fit_delta_z):
         self._fit_delta_z: float = fit_delta_z
@@ -57,12 +57,7 @@ class GetCod:
         return self
 
     def fit(self):
-        molecular_signal = molecular_model(self.signal,
-                                           self.rangebin,
-                                           self.sigma,
-                                           self.molecular_data,
-                                           [self.cloud_lims[0] - self._fit_delta_z - 50, self.cloud_lims[0] - 50],
-                                           change_reference=None)
+        molecular_signal = molecular_model(self.rangebin, self.signal, self.molecular_data, self.fit_region)
 
         molecular_rcs = molecular_signal * self.rangebin ** 2
 
@@ -83,17 +78,18 @@ class GetCod:
 
 
 class LidarRatioCalculator:
-    def __init__(self, signal: np.array, rangebin: np.array, sigma: np.array, molecular_data: xr.Dataset, z_ref: list,
-                 cloud_lims: list, mc=False, mc_niter=100, correct_noise: bool = True):
+    def __init__(self, rangebin: np.array, signal: np.array, molecular_data: xr.Dataset, fit_region: list,
+                 molecular_reference_region: list, cloud_lims: list, mc=False, mc_niter=100,
+                 correct_noise: bool = True):
         self.signal = signal
         self.rangebin = rangebin
-        self.sigma = sigma
         self.cloud_lims = cloud_lims
         self.molecular_data = molecular_data
-        self.z_ref = z_ref
+        self.molecular_reference_region = molecular_reference_region
         self.correct_noise = correct_noise
         self.mc = mc
         self.mc_niter = mc_niter
+        self.fit_region = fit_region
         self.tau_mean, self.tau_std_mean = None, None
         self.tau_transmittance = None
 
@@ -102,15 +98,14 @@ class LidarRatioCalculator:
 
         cloud_ind = z_finder(self.rangebin, self.cloud_lims)
 
-        klett = Klett(signal=self.signal, rangebin=self.rangebin, molecular_data=self.molecular_data,
-                      z_ref=self.z_ref,
-                      lidar_ratio=1, correct_noise=self.correct_noise)
+        klett = Klett(rangebin=self.rangebin, signal=self.signal, molecular_data=self.molecular_data, lidar_ratio=1,
+                      molecular_reference_region=self.molecular_reference_region, correct_noise=self.correct_noise)
 
         taus = []
         for lidar_ratio in lidar_ratios:
             klett.set_lidar_ratio(lidar_ratio)
             alpha, *_ = klett.fit()
-            taus.append(trapz(y=alpha[cloud_ind[0]:cloud_ind[1] + 1],
+            taus.append(trapezoid(y=alpha[cloud_ind[0]:cloud_ind[1] + 1],
                               dx=self.rangebin[1] - self.rangebin[0]))
 
         difference = (np.array(taus) - tau_transmittance) ** 2
@@ -124,9 +119,9 @@ class LidarRatioCalculator:
         return new_lr[new_diff.argmin()]
 
     def _compute_tau(self):
-        self.tau_mean, self.tau_std_mean = GetCod(signal=self.signal, rangebin=self.rangebin,
-                                                  sigma=self.sigma, molecular_data=self.molecular_data,
-                                                  cloud_lims=self.cloud_lims).fit()
+        self.tau_mean, self.tau_std_mean = GetCod(rangebin=self.rangebin, signal=self.signal,
+                                                  molecular_data=self.molecular_data, cloud_lims=self.cloud_lims,
+                                                  fit_region=self.fit_region).fit()
 
         self.tau_transmittance = self.tau_mean + self.tau_std_mean * np.random.randn(self.mc_niter)
 

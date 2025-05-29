@@ -1,8 +1,7 @@
 import numpy as np
-import xarray as xr
 from scipy.interpolate import interp1d
 import datetime
-from lidarpy_old.data.manipulation import smooth, smooth_diego_fast, z_finder
+from lidarpy.utils.functions import smooth, smooth_diego_fast, z_finder
 
 
 class CloudFinder:
@@ -20,35 +19,24 @@ class CloudFinder:
         signal (np.array): LIDAR signal inversion subset for reference altitudes.
         sigma (np.array): Standard deviation of the LIDAR signal inversion within reference altitudes.
         window (int): Window size for smoothing operations.
-        jdz (float): Julian date representation.
+        datetime (float): Julian date representation.
     """
-    _Z_MAX = 30_001
+    _Z_MAX = 25_000
 
-    def __init__(self, signal: np.array, rangebin: np.array, sigma: np.array, z_min: int, window: int, jdz):
+    def __init__(self, rangebin: np.array, signal: np.array, sigma: np.array, z_min: float, window: int,
+                 time: datetime):
         self._original_data = signal.copy()
         self.ref_min, self.ref_max = z_finder(rangebin, z_min), z_finder(rangebin, self._Z_MAX)
         self.signal = signal[self.ref_min:self.ref_max]
-        self.z = rangebin[self.ref_min:self.ref_max].data
+        self.z = rangebin[self.ref_min:self.ref_max]
         self.sigma = sigma[self.ref_min:self.ref_max]
+        self._sigma_original = sigma.copy()
         self.window = window
-        self.jdz = jdz
-
-    @staticmethod
-    def _datevec(ordinal):
-        """Converts a given ordinal date to its corresponding datetime.
-
-            Parameters:
-            - ordinal (float): The ordinal representation of the date.
-
-            Returns:
-            - datetime.datetime: The datetime representation of the ordinal.
-        """
-        plain_date = datetime.date.fromordinal(int(ordinal))
-        date_time = datetime.datetime.combine(plain_date, datetime.datetime.min.time())
-        return date_time + datetime.timedelta(days=ordinal - int(ordinal))
+        self.datetime = time
 
     def _rcs_with_smooth(self):
         signal_w_smooth = smooth(self.signal, self.window)[::self.window]
+
         z_aux = self.z[::self.window]
         rcs_aux = signal_w_smooth * z_aux ** 2
 
@@ -67,7 +55,7 @@ class CloudFinder:
         return rcs_smooth, rcs_smooth_2, rcs_smooth_3
 
     def _sigma_rcs(self):
-        sigma2 = self._original_data.sigma.data.copy()
+        sigma2 = self._sigma_original.copy()
         aux = np.unique(sigma2)
         aux.sort()
         if len(aux) > 1:
@@ -128,7 +116,7 @@ class CloudFinder:
         snr_exc = rcs_smooth_exc / sigma_rcs
         ind_base, ind_top = [], []
         n1 = 2
-        hour = self._datevec(self.jdz).hour
+        hour = self.datetime.hour
 
         k9101112 = z_finder(self.z, [9000, 10_000, 11_000, 12_000])
 

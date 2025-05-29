@@ -1,6 +1,6 @@
 import numpy as np
 import xarray as xr
-from scipy.integrate import cumtrapz, trapz
+from scipy.integrate import cumulative_trapezoid, trapezoid
 from scipy.optimize import curve_fit
 from lidarpy.utils.functions import z_finder
 
@@ -131,11 +131,11 @@ class Klett:
     fit_parameters = None
     _calib_strategies = {True: calib_strategy1, False: calib_strategy2}
 
-    def __init__(self, signal: np.array, rangebin: np.array, molecular_data: xr.Dataset, z_ref: list,
-                 lidar_ratio: float, correct_noise: bool = True):
+    def __init__(self, rangebin: np.array, signal: np.array, molecular_data: xr.Dataset, lidar_ratio: float,
+                 molecular_reference_region: list, correct_noise: bool = True):
         self.signal = signal.copy()
         self.rangebin = rangebin.copy()
-        self.ref = z_ref
+        self.ref = molecular_reference_region
         self._calib_strategy = self._calib_strategies[correct_noise]
         self._alpha['mol'], self._beta['mol'], self._lr['mol'] = (molecular_data.alpha.data, molecular_data.beta.data,
                                                                   molecular_data.lidar_ratio.data)
@@ -162,7 +162,7 @@ class Klett:
         return self
 
     def get_model_mol(self) -> np.array:
-        return (self._beta['mol'] * np.exp(-2 * cumtrapz(self._alpha['mol'], self.rangebin, initial=0))
+        return (self._beta['mol'] * np.exp(-2 * cumulative_trapezoid(self._alpha['mol'], self.rangebin, initial=0))
                 / self.rangebin ** 2)
 
     def _calibration(self, signal):
@@ -185,15 +185,15 @@ class Klett:
 
         corrected_signal = signal * self.rangebin ** 2
 
-        spp = corrected_signal * np.exp(- 2 * cumtrapz(x=self.rangebin,
+        spp = corrected_signal * np.exp(- 2 * cumulative_trapezoid(x=self.rangebin,
                                                        y=(self._lr['aer'] - self._lr['mol']) * self._beta['mol'],
                                                        initial=0))
 
         sppr = spp / spp[ref0]
 
         self._beta['tot'] = sppr / (
-                1 / beta_ref - (cumtrapz(x=self.rangebin, y=2 * self._lr['aer'] * sppr, initial=0)
-                                - trapz(x=self.rangebin[:ref0],
+                1 / beta_ref - (cumulative_trapezoid(x=self.rangebin, y=2 * self._lr['aer'] * sppr, initial=0)
+                                - trapezoid(x=self.rangebin[:ref0],
                                         y=2 * (self._lr['aer'] * np.ones_like(sppr))[:ref0] * sppr[:ref0])))
 
         self._beta['aer'] = self._beta['tot'] - self._beta['mol']
@@ -202,6 +202,6 @@ class Klett:
 
         self._alpha['tot'] = self._alpha['mol'] + self._alpha['aer']
 
-        self.tau = trapz(self._alpha["aer"], self.rangebin)
+        self.tau = trapezoid(self._alpha["aer"], self.rangebin)
 
         return self._alpha["aer"].copy(), self._beta["aer"].copy(), self._lr["aer"]
