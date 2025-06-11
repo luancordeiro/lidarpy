@@ -1,0 +1,28 @@
+time                 Profile timestamp (ISO 8601).
+year                 Calendar year, 2011–2017.
+period               Climatological season: Wet, Transition, or Dry.
+month                Month of year (1–12).
+day                  Day of month (1–31).
+hour                 Local hour (0–23).
+
+z_bases              Cloud‑base altitude (m).
+z_tops               Cloud‑top altitude (m).
+tropopause_base      Vertical distance from cloud base to tropopause (m).
+tropopause_top       Vertical distance from cloud top to tropopause (m).
+
+tropopause_base_bool True if cloud base is above the tropopause.
+tropopause_top_bool  True if cloud top is above the tropopause.
+
+thickness            Cloud thickness = z_tops − z_bases (m).
+
+cod                  Cloud optical depth (dimensionless, MS‑corrected).
+lidar_ratio          Lidar ratio (sr).
+
+class_               Nominal class: subvisual / thin / opaque.
+subvisual            Boolean — layer classified as sub‑visual (COD < 0.03).
+thin                 Boolean — layer classified as thin (0.03 ≤ COD ≤ 0.30).
+opaque               Boolean — layer classified as opaque (COD > 0.30).
+
+fake_top1            Boolean flag: cloud top flagged as spurious.
+cond_s_bg            Boolean — signal‑to‑noise ratio meets quality threshold.
+cirrus               Boolean — profile contains cirrus according to study criteria.
