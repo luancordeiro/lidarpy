@@ -10,6 +10,7 @@ This repository contains the notebook and supporting data sets used to generate 
 | Path | Purpose |
 |------|---------|
 | **main.ipynb** | Jupyter notebook that ingests the data sets below and exports publication‑ready figures. |
+| **df_cirrus_metadata.txt** | df_cirrus dictionary |
 | **df_cirrus_part1.csv** | Cirrus‑layer properties (≈ first third of the record). |
 | **df_cirrus_part2.csv** | Second third of the cirrus data set. |
 | **df_cirrus_part3.csv** | Final third of the cirrus data set. |
