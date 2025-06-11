@@ -16,7 +16,7 @@ This repository contains the notebook and supporting data sets used to generate 
 | **df_cirrus_part3.csv** | Final third of the cirrus data set. |
 | **gouveia_freq_wet.csv** | Monthly cirrus-frequency climatology for the wet season. |
 | **gouveia_freq_dry.csv** | As above, dry season. |
-| **gouveia_freq_trans.csv** | Transition season (Apr–Jun & Oct–Nov). |
+| **gouveia_freq_trans.csv** | Transition season. |
 | **gouveia_freq_total.csv** | Full-year climatology (wet + dry + transition). |
 | **precip_2011_2017_cmorph.csv** | 30‑min CMORPH precipitation time series (Jul 2011 – Dec 2017). |
 | **precip_2011_2017_cmorph_daily.csv** | Same data aggregated to daily totals. |
