@@ -180,7 +180,7 @@ class Klett:
 
         return beta_ref, signal, ref[0]
 
-    def fit(self):
+    def fit(self, hmin_tau: float = None):
         beta_ref, signal, ref0 = self._calibration(self.signal)
 
         corrected_signal = signal * self.rangebin ** 2
@@ -202,6 +202,14 @@ class Klett:
 
         self._alpha['tot'] = self._alpha['mol'] + self._alpha['aer']
 
-        self.tau = trapezoid(self._alpha["aer"], self.rangebin)
+        # Force near-ground extinction to be constant
+        if hmin_tau is not None:
+            minlev = int((hmin_tau - self.rangebin[0]) / (self.rangebin[1] - self.rangebin[0]))
+            self._alpha['aer'][:minlev] = self._alpha['aer'][minlev]
+            self._alpha['tot'] = self._alpha['mol'] + self._alpha['aer']
 
-        return self._alpha["aer"].copy(), self._beta["aer"].copy(), self._lr["aer"]
+        # compute tau only below the altitude where the molecular reference starts
+        maxlev = int((self.ref[0] - self.rangebin[0]) / (self.rangebin[1] - self.rangebin[0]))
+        self.tau = trapezoid(self._alpha["aer"][:maxlev], self.rangebin[:maxlev])
+
+        return self._alpha["aer"].copy(), self._beta["aer"].copy(), self.tau
