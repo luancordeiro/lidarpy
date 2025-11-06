@@ -112,13 +112,23 @@ class AlphaBetaMolecular:
         beta_mol = alpha_mol / lr_mol
         return beta_mol, lr_mol
 
-    def get_params(self):
+    def get_params(self, new_rangebin: float = None):
         alpha_mol = self._vol_scattering_coeff()
         beta_mol, lr_mol = self._ang_vol_scattering_coeff(alpha_mol)
+        rangebin = self.rangebin
 
-        alpha_mol = xr.DataArray(alpha_mol, coords=[('rangebin', self.rangebin)], name='alpha')
-        beta_mol = xr.DataArray(beta_mol, coords=[('rangebin', self.rangebin)], name='beta')
-        lr_mol = xr.DataArray(lr_mol * np.ones_like(self.rangebin), coords=[('rangebin', self.rangebin)], name='lidar_ratio')
+        # interpolate to the new rangebin values
+        if new_rangebin is not None:
+            alpha_mol = np.interp(new_rangebin, rangebin, alpha_mol)
+            beta_mol = np.interp(new_rangebin, rangebin, beta_mol)
+            if hasattr(new_rangebin, 'values'):
+                rangebin = new_rangebin.values
+            else:
+                rangebin = new_rangebin
+
+        alpha_mol = xr.DataArray(alpha_mol, coords=[('rangebin', rangebin)], name='alpha')
+        beta_mol = xr.DataArray(beta_mol, coords=[('rangebin', rangebin)], name='beta')
+        lr_mol = xr.DataArray(lr_mol * np.ones_like(rangebin), coords=[('rangebin', rangebin)], name='lidar_ratio')
 
         ds = xr.merge([alpha_mol, beta_mol, lr_mol])
 
